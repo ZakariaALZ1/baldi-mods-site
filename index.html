@@ -952,6 +952,7 @@
   </footer>
 
   <!-- Main Script -->
+  <!-- Main Script -->
   <script src="script.js"></script>
   
   <script>
@@ -982,6 +983,13 @@
         const isReady = await waitForSupabase();
         if (!isReady) {
           console.warn('Supabase not ready, retrying in 1 second...');
+          setTimeout(loadHeaderStats, 1000);
+          return;
+        }
+
+        // Check if supabase.from is actually a function
+        if (typeof supabase.from !== 'function') {
+          console.warn('supabase.from is not a function, retrying...');
           setTimeout(loadHeaderStats, 1000);
           return;
         }
@@ -1029,65 +1037,52 @@
     }
 
     // ============================================
-    // FIX 4: Safe function wrappers for auth functions
-    // ============================================
-    async function safeSignUp() {
-      if (typeof signUp === 'function') {
-        return signUp();
-      }
-      console.error('signUp function not loaded yet');
-      alert('Authentication system is loading. Please try again in a moment.');
-    }
-
-    async function safeSignIn() {
-      if (typeof signIn === 'function') {
-        return signIn();
-      }
-      console.error('signIn function not loaded yet');
-      alert('Authentication system is loading. Please try again in a moment.');
-    }
-
-    async function safeLogout() {
-      if (typeof logout === 'function') {
-        return logout();
-      }
-      console.error('logout function not loaded yet');
-    }
-
-    // ============================================
-    // FIX 5: Initialize everything with proper timing
+    // FIX 4: Initialize everything with proper timing
     // ============================================
     document.addEventListener('DOMContentLoaded', async function() {
       // Wait for supabase first
       const isReady = await waitForSupabase();
       
       if (isReady) {
-        // Small delay to ensure script.js has initialized
+        // Give script.js a moment to initialize
         setTimeout(() => {
-          if (typeof checkAuthState === 'function') checkAuthState();
-          if (typeof loadMods === 'function') loadMods();
+          // Check if functions exist before calling them
+          if (typeof window.checkAuthState === 'function') window.checkAuthState();
+          if (typeof window.loadMods === 'function') window.loadMods();
           if (typeof loadHeaderStats === 'function') loadHeaderStats();
-        }, 200);
+        }, 300);
       } else {
         console.error('Supabase failed to initialize after multiple attempts');
+        document.querySelector('.gb-loading')?.remove();
+        const modsGrid = document.getElementById('mods');
+        if (modsGrid) {
+          modsGrid.innerHTML = '<div class="gb-error" style="grid-column: 1/-1; text-align: center; padding: 60px;"><h2>❌ Failed to Load</h2><p>Please refresh the page.</p></div>';
+        }
       }
     });
 
     // ============================================
-    // FIX 6: Override button onclick handlers with safe versions
+    // FIX 5: Direct function references - NO RECURSION!
     // ============================================
-    window.signUp = safeSignUp;
-    window.signIn = safeSignIn;
-    window.logout = safeLogout;
+    // Don't override window.signUp - let script.js provide it directly
+    // Just make sure the buttons call the functions from window
+    
+    // Make loadHeaderStats globally available
     window.loadHeaderStats = loadHeaderStats;
-
-    // Also keep the original functions if they exist
-    window.addEventListener('load', function() {
-      // Rebind original functions if they're loaded
-      if (typeof signUp === 'function') window.signUp = signUp;
-      if (typeof signIn === 'function') window.signIn = signIn;
-      if (typeof logout === 'function') window.logout = logout;
-    });
+    
+    // Log when functions are ready
+    setTimeout(() => {
+      if (typeof window.signUp === 'function') {
+        console.log('✅ signUp function is ready');
+      } else {
+        console.warn('⚠️ signUp function not loaded yet');
+      }
+      if (typeof window.signIn === 'function') {
+        console.log('✅ signIn function is ready');
+      } else {
+        console.warn('⚠️ signIn function not loaded yet');
+      }
+    }, 500);
   </script>
 </body>
 </html>

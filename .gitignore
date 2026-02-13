@@ -1,0 +1,22 @@
+# Secrets - NEVER PUSH!
+config.js
+.env
+.env.local
+
+# Supabase local files
+supabase/.temp
+supabase/.branches
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor files (but keep .vscode settings)
+*.swp
+*.swo
+.idea/
+
+# Logs
+*.log
+npm-debug.log*config.js 
+config.js 

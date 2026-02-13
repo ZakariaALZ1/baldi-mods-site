@@ -1,0 +1,51 @@
+<!DOCTYPE html> 
+<html lang="en"> 
+<head> 
+  <meta charset="UTF-8"> 
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"> 
+  <title>Baldi Mods Hub - Secure Mod Platform</title> 
+  <link rel="stylesheet" href="style.css"> 
+  <script src="js/supabase.min.js"></script> 
+  <script src="config.js"></script> 
+</head> 
+<body> 
+  <header> 
+    <h1>🎓 Baldi Mods Hub</h1> 
+    <p class="tagline">Secure modding platform for Baldi's Basics</p> 
+  </header> 
+  <div id="auth-section"> 
+    <div id="auth-container" class="auth-container"> 
+      <div class="auth-form"> 
+        <h3>🔐 Account Required</h3> 
+        <input type="email" id="email" placeholder="Email" autocomplete="email"> 
+        <input type="password" id="password" placeholder="Password" autocomplete="current-password"> 
+        <div class="auth-buttons"> 
+          <button onclick="signUp()" class="btn-signup">Sign Up</button> 
+          <button onclick="signIn()" class="btn-signin">Login</button> 
+        </div> 
+      </div> 
+    </div> 
+  </div> 
+  <div id="user-section" style="display: none;"> 
+    <div class="user-info"> 
+      <span id="userEmail"></span> 
+      <span id="userRole" class="user-role-badge"></span> 
+      <button onclick="logout()" class="btn-logout">Logout</button> 
+    </div> 
+  </div> 
+  <nav id="main-nav" class="main-nav"></nav> 
+  <main> 
+    <section class="mods-section"> 
+      <h2>Latest Mods</h2> 
+      <div class="search-container"> 
+        <input id="search" type="search" placeholder="Search mods..." oninput="loadMods()" aria-label="Search mods"> 
+      </div> 
+      <div id="mods" class="mods-grid"></div> 
+    </section> 
+  </main> 
+  <footer> 
+    <p>🔒 All files are scanned for malware | Moderated uploads | Secure downloads | 2GB max file size</p> 
+  </footer> 
+  <script src="script.js"></script> 
+</body> 
+</html> 

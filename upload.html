@@ -1,0 +1,60 @@
+<!DOCTYPE html> 
+<html lang="en"> 
+<head> 
+  <meta charset="UTF-8"> 
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"> 
+  <title>Upload Mod - Baldi Mods Hub</title> 
+  <link rel="stylesheet" href="style.css"> 
+  <script src="js/supabase.min.js"></script> 
+  <script src="config.js"></script> 
+</head> 
+<body> 
+  <header> 
+    <h1>📤 Upload Baldi Mod</h1> 
+    <a href="index.html" class="back-link">← Back to Home</a> 
+  </header> 
+  <main> 
+    <div class="upload-container"> 
+      <div class="security-notice"> 
+        <h3>🔒 Security Check</h3> 
+        <p>All files are automatically scanned for malware. Uploads require moderator approval.</p> 
+        <ul> 
+          <li>✅ Maximum file size: <strong>2GB</strong></li> 
+          <li>✅ Allowed formats: ZIP, RAR, 7Z, .baldimod</li> 
+          <li>✅ Files are hashed and scanned for threats</li> 
+          <li>✅ No executable files allowed</li> 
+        </ul> 
+      </div> 
+      <form id="uploadForm" class="upload-form"> 
+        <div class="form-group"> 
+          <label for="title">Mod Title *</label> 
+          <input type="text" id="title" name="title" placeholder="Enter mod title" maxlength="100" required> 
+          <span class="char-counter" id="titleCounter">0/100</span> 
+        </div> 
+        <div class="form-group"> 
+          <label for="description">Description *</label> 
+          <textarea id="description" name="description" placeholder="Describe your mod..." maxlength="5000" rows="6" required></textarea> 
+          <span class="char-counter" id="descCounter">0/5000</span> 
+        </div> 
+        <div class="form-group"> 
+          <label for="version">Version *</label> 
+          <input type="text" id="version" name="version" placeholder="1.0.0" value="1.0.0" maxlength="20" required> 
+        </div> 
+        <div class="form-group"> 
+          <label for="file">Mod File * (up to 2GB)</label> 
+          <input type="file" id="file" name="file" accept=".zip,.rar,.7z,.baldimod" required> 
+          <p class="file-hint">Accepted formats: ZIP, RAR, 7Z, .baldimod (Maximum 2GB)</p> 
+        </div> 
+        <div class="form-actions"> 
+          <button type="button" onclick="uploadMod()" class="btn-upload">🚀 Upload Mod</button> 
+          <button type="reset" class="btn-reset">🗑️ Clear Form</button> 
+        </div> 
+      </form> 
+    </div> 
+  </main> 
+  <footer> 
+    <p>🔒 Your file will be scanned for malware before upload | 2GB max file size</p> 
+  </footer> 
+  <script src="script.js"></script> 
+</body> 
+</html> 

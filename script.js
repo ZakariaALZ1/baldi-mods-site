@@ -2399,7 +2399,6 @@ async function loadModPage() {
    EXPORT GLOBALS
 ========================= */
 
-window.supabase = supabase;
 window.signUp = signUp;
 window.signIn = signIn;
 window.logout = logout;

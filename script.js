@@ -1,22 +1,29 @@
 if (window.__SUPABASE_INIT_DONE__) throw new Error("Duplicate Supabase init block in script.js");
 window.__SUPABASE_INIT_DONE__ = true;
 
+/* =========================
+   SUPABASE INIT
+========================= */
+
 (function() {
+  // Check if the Supabase library is loaded and has createClient function
   if (typeof window.supabase === 'undefined' || typeof window.supabase.createClient !== 'function') {
     console.error('❌ Supabase library not loaded or invalid!');
     return;
   }
 
   const SUPABASE_URL = window.ENV?.SUPABASE_URL || "https://deovtpdjugfkccnpxfsm.supabase.co";
-  const SUPABASE_ANON_KEY = window.ENV?.SUPABASE_ANON_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...";
+  const SUPABASE_ANON_KEY = window.ENV?.SUPABASE_ANON_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRlb3Z0cGRqdWdma2NjbnB4ZnNtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA4ODk1MDMsImV4cCI6MjA4NjQ2NTUwM30.gEoj1WhdkyOcJQ3bf66FbTxneKmPvqspSHzu3Rd-W8A";
 
   if (!window.__SUPABASE_CLIENT__) {
     window.__SUPABASE_CLIENT__ = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
   }
 })();
 
+/* ✅ Create global supabase reference */
 window.supabaseClient = window.__SUPABASE_CLIENT__;
 const supabaseClient = window.__SUPABASE_CLIENT__;  // internal use only
+
 /* =========================
    GLOBAL STATE MANAGEMENT
 ========================= */
@@ -646,6 +653,8 @@ function startSessionCheck() {
   if (sessionCheckInterval) clearInterval(sessionCheckInterval);
   sessionCheckInterval = setInterval(async () => {
     const { data: { session } } = await supabaseClient.auth.getSession();
+    console.log('Session:', session);
+    console.log('Token expiry:', session?.expires_at ? new Date(session.expires_at * 1000).toLocaleString() : 'none');
     if (!session) {
       showNotification('Session expired. Please login again.', 'info');
       await logout();
@@ -964,7 +973,7 @@ async function guardAdminDashboard() {
 }
 
 /* =========================
-   MOD UPLOAD - 2GB SUPPORT
+   MOD UPLOAD - 2GB SUPPORT (FIXED JWT HANDLING)
 ========================= */
 
 async function uploadMod() {
@@ -1014,13 +1023,17 @@ async function uploadMod() {
   document.querySelector('.gb-upload-form')?.appendChild(progressDiv);
 
   try {
-    // Get the current session to retrieve the access token
-    const { data: { session } } = await supabaseClient.auth.getSession();
-    const accessToken = session?.access_token;
+    // Get the current session, refresh if needed
+// Force a fresh token – getUser() auto‑refreshes if needed
+const { data: { user }, error: userError } = await supabaseClient.auth.getUser();
+if (userError || !user) throw new Error("Not authenticated");
 
-    if (!accessToken) {
-      throw new Error("No valid session. Please log in again.");
-    }
+// Now get the session – it will contain the fresh token
+const { data: { session } } = await supabaseClient.auth.getSession();
+const accessToken = session?.access_token;
+if (!accessToken) throw new Error("No valid session");
+
+console.log('Using token (first 20 chars):', accessToken.substring(0,20)); // for debugging
 
     const formData = new FormData();
     formData.append('file', file);

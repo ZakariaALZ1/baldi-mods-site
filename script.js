@@ -1,13 +1,11 @@
 /* =========================
    SECURE SUPABASE INIT 
-   (Vercel Env Vars FIRST, config.js fallback)
 ========================= */
 
 (function() {
   // Check if Supabase library is loaded
   if (typeof window.supabase === 'undefined') {
     console.error('❌ Supabase library not loaded!');
-    showErrorBanner('Supabase library failed to load. Please refresh.');
     return;
   }
 
@@ -22,7 +20,6 @@
 
   if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
     console.error('❌ Supabase configuration missing!');
-    showErrorBanner('Supabase configuration missing. Please add environment variables in Vercel.');
     return;
   }
 
@@ -40,18 +37,12 @@
             flowType: 'pkce',
             storage: window.localStorage,
             storageKey: 'baldi-mods-auth'
-          },
-          global: {
-            headers: {
-              'x-application-name': 'baldi-mods-hub'
-            }
           }
         }
       );
       console.log('✅ Supabase client initialized');
     } catch (err) {
       console.error('❌ Failed to create Supabase client:', err);
-      showErrorBanner('Failed to initialize Supabase. Please refresh.');
       return;
     }
   }
@@ -62,24 +53,7 @@
 // DECLARE ONCE - NO DUPLICATES!
 const supabase = window.supabase;
 
-// Helper for error banner
-function showErrorBanner(message) {
-  const banner = document.createElement('div');
-  banner.style.cssText = `
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    background: #ff4444;
-    color: white;
-    padding: 15px;
-    text-align: center;
-    z-index: 99999;
-    font-weight: bold;
-  `;
-  banner.textContent = `❌ ${message}`;
-  document.body.prepend(banner);
-}
+// ✅ NO DUPLICATE LINE HERE!
 
 /* =========================
    GLOBAL STATE MANAGEMENT

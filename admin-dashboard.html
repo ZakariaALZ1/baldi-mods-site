@@ -68,12 +68,26 @@
 
   <script src="script.js"></script>
   <script>
-    // AUTH GUARD - Redirect if not admin
+    // Wait for supabase to be initialized
     (async function() {
+      const waitForSupabase = async (maxAttempts = 30) => {
+        for (let i = 0; i < maxAttempts; i++) {
+          if (typeof window.supabaseClient !== 'undefined') {
+            return true;
+          }
+          await new Promise(resolve => setTimeout(resolve, 100));
+        }
+        return false;
+      };
+
+      await waitForSupabase();
+      
       const admin = await window.isAdmin?.();
       
       if (!admin) {
-        window.showNotification?.('Access denied. Administrator privileges required.', 'error');
+        if (typeof window.showNotification === 'function') {
+          window.showNotification('Access denied. Administrator privileges required.', 'error');
+        }
         setTimeout(() => {
           window.location.href = 'index.html';
         }, 2000);

@@ -680,15 +680,21 @@
     // ============================================
     (async function() {
       try {
-        // Check if supabase is initialized
-        if (typeof supabase === 'undefined') {
-          console.error('Supabase not initialized');
-          window.location.href = 'index.html?error=auth';
-          return;
-        }
+        // Wait for supabase to be initialized
+        const waitForSupabase = async (maxAttempts = 30) => {
+          for (let i = 0; i < maxAttempts; i++) {
+            if (typeof window.supabaseClient !== 'undefined') {
+              return true;
+            }
+            await new Promise(resolve => setTimeout(resolve, 100));
+          }
+          return false;
+        };
+
+        await waitForSupabase();
 
         // Get current user
-        const { data: { user }, error } = await supabase.auth.getUser();
+        const { data: { user }, error } = await window.supabaseClient.auth.getUser();
         
         // If not logged in, redirect to index.html IMMEDIATELY
         if (error || !user) {
@@ -732,14 +738,14 @@
     async function renderFallbackProfile(user) {
       try {
         // Get or create profile
-        let { data: profile } = await supabase
+        let { data: profile } = await window.supabaseClient
           .from('profiles')
           .select('*')
           .eq('id', user.id)
           .single();
 
         if (!profile) {
-          const { data: newProfile } = await supabase
+          const { data: newProfile } = await window.supabaseClient
             .from('profiles')
             .insert({
               id: user.id,
@@ -968,7 +974,7 @@
       if (!user) return;
 
       try {
-        const { data: mods } = await supabase
+        const { data: mods } = await window.supabaseClient
           .from('mods2')
           .select('*')
           .eq('user_id', user.id);
@@ -989,7 +995,7 @@
 
     async function getCurrentUserFallback() {
       try {
-        const { data: { user } } = await supabase.auth.getUser();
+        const { data: { user } } = await window.supabaseClient.auth.getUser();
         return user;
       } catch {
         return null;

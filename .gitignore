@@ -1,7 +1,9 @@
 # Secrets - NEVER PUSH!
-config.js
+# config.js is PUBLIC and should be committed!
+# .env.local is for local environment variables (NOT committed)
 .env
 .env.local
+.env.production
 
 # Supabase local files
 supabase/.temp
@@ -18,5 +20,4 @@ Thumbs.db
 
 # Logs
 *.log
-npm-debug.log*config.js 
-config.js 
+npm-debug.log*

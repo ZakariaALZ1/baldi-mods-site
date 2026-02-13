@@ -951,22 +951,18 @@
     </div>
   </footer>
 
-  <!-- Main Script -->
-  <!-- Main Script -->
+  <!-- Main Script - ONLY ONCE! -->
   <script src="script.js"></script>
   
   <script>
     // ============================================
-    // FIX 1: Remove duplicate supabase declaration in script.js
-    // GO TO script.js and DELETE the line: window.supabase = supabase; (around line 2450)
-    // ============================================
-
-    // ============================================
-    // FIX 2: Wait for Supabase to be ready before using it
+    // Simple wait for Supabase
     // ============================================
     async function waitForSupabase(maxAttempts = 30) {
       for (let i = 0; i < maxAttempts; i++) {
-        if (typeof supabase !== 'undefined' && typeof supabase.from === 'function') {
+        // Check for the Supabase client that script.js creates
+        if (typeof window.supabaseClient !== 'undefined' && 
+            typeof window.supabaseClient.from === 'function') {
           return true;
         }
         await new Promise(resolve => setTimeout(resolve, 100));
@@ -974,115 +970,54 @@
       return false;
     }
 
-    // ============================================
-    // FIX 3: Fixed loadHeaderStats with proper error handling
-    // ============================================
+    // Load header stats
     async function loadHeaderStats() {
       try {
-        // Wait for supabase to be ready
-        const isReady = await waitForSupabase();
-        if (!isReady) {
-          console.warn('Supabase not ready, retrying in 1 second...');
+        if (!await waitForSupabase()) {
           setTimeout(loadHeaderStats, 1000);
           return;
         }
 
-        // Check if supabase.from is actually a function
-        if (typeof supabase.from !== 'function') {
-          console.warn('supabase.from is not a function, retrying...');
-          setTimeout(loadHeaderStats, 1000);
-          return;
-        }
-
-        // Get total mods
-        const { count: modCount, error: modError } = await supabase
+        const { count: modCount } = await window.supabaseClient
           .from('mods2')
           .select('*', { count: 'exact', head: true })
           .eq('approved', true);
           
-        if (modError) throw modError;
-        
-        // Get total users
-        const { count: userCount, error: userError } = await supabase
+        const { count: userCount } = await window.supabaseClient
           .from('profiles')
           .select('*', { count: 'exact', head: true });
           
-        if (userError) throw userError;
-        
-        // Get total downloads
-        const { data: mods, error: downloadError } = await supabase
+        const { data: mods } = await window.supabaseClient
           .from('mods2')
           .select('download_count');
           
-        if (downloadError) throw downloadError;
-        
         const downloadCount = mods?.reduce((sum, m) => sum + (m.download_count || 0), 0) || 0;
         
-        // Update DOM with null checks
-        const headerTotalMods = document.getElementById('headerTotalMods');
-        const headerTotalUsers = document.getElementById('headerTotalUsers');
-        const headerTotalDownloads = document.getElementById('headerTotalDownloads');
-        const modCountEl = document.getElementById('modCount');
-        
-        if (headerTotalMods) headerTotalMods.textContent = modCount?.toLocaleString() || '0';
-        if (headerTotalUsers) headerTotalUsers.textContent = userCount?.toLocaleString() || '0';
-        if (headerTotalDownloads) headerTotalDownloads.textContent = downloadCount.toLocaleString();
-        if (modCountEl) modCountEl.textContent = modCount?.toLocaleString() || '0';
+        document.getElementById('headerTotalMods').textContent = modCount || 0;
+        document.getElementById('headerTotalUsers').textContent = userCount || 0;
+        document.getElementById('headerTotalDownloads').textContent = downloadCount.toLocaleString();
+        document.getElementById('modCount').textContent = modCount || 0;
         
       } catch (err) {
         console.error('Failed to load stats:', err);
-        // Retry after 2 seconds
         setTimeout(loadHeaderStats, 2000);
       }
     }
 
-    // ============================================
-    // FIX 4: Initialize everything with proper timing
-    // ============================================
+    // Initialize
     document.addEventListener('DOMContentLoaded', async function() {
-      // Wait for supabase first
-      const isReady = await waitForSupabase();
-      
-      if (isReady) {
-        // Give script.js a moment to initialize
+      if (await waitForSupabase()) {
         setTimeout(() => {
-          // Check if functions exist before calling them
           if (typeof window.checkAuthState === 'function') window.checkAuthState();
           if (typeof window.loadMods === 'function') window.loadMods();
-          if (typeof loadHeaderStats === 'function') loadHeaderStats();
-        }, 300);
+          loadHeaderStats();
+        }, 200);
       } else {
         console.error('Supabase failed to initialize after multiple attempts');
-        document.querySelector('.gb-loading')?.remove();
-        const modsGrid = document.getElementById('mods');
-        if (modsGrid) {
-          modsGrid.innerHTML = '<div class="gb-error" style="grid-column: 1/-1; text-align: center; padding: 60px;"><h2>❌ Failed to Load</h2><p>Please refresh the page.</p></div>';
-        }
       }
     });
 
-    // ============================================
-    // FIX 5: Direct function references - NO RECURSION!
-    // ============================================
-    // Don't override window.signUp - let script.js provide it directly
-    // Just make sure the buttons call the functions from window
-    
-    // Make loadHeaderStats globally available
     window.loadHeaderStats = loadHeaderStats;
-    
-    // Log when functions are ready
-    setTimeout(() => {
-      if (typeof window.signUp === 'function') {
-        console.log('✅ signUp function is ready');
-      } else {
-        console.warn('⚠️ signUp function not loaded yet');
-      }
-      if (typeof window.signIn === 'function') {
-        console.log('✅ signIn function is ready');
-      } else {
-        console.warn('⚠️ signIn function not loaded yet');
-      }
-    }, 500);
   </script>
 </body>
 </html>

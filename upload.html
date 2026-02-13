@@ -740,15 +740,21 @@
     // ============================================
     (async function() {
       try {
-        // Check if supabase is initialized
-        if (typeof supabase === 'undefined') {
-          console.error('Supabase not initialized');
-          window.location.href = 'index.html?error=auth';
-          return;
-        }
+        // Wait for supabase to be initialized
+        const waitForSupabase = async (maxAttempts = 30) => {
+          for (let i = 0; i < maxAttempts; i++) {
+            if (typeof window.supabaseClient !== 'undefined') {
+              return true;
+            }
+            await new Promise(resolve => setTimeout(resolve, 100));
+          }
+          return false;
+        };
+
+        await waitForSupabase();
 
         // Get current user
-        const { data: { user }, error } = await supabase.auth.getUser();
+        const { data: { user }, error } = await window.supabaseClient.auth.getUser();
         
         // If not logged in, redirect to index.html IMMEDIATELY
         if (error || !user) {
@@ -758,7 +764,7 @@
         }
 
         // Check if user is shadow banned
-        const { data: profile } = await supabase
+        const { data: profile } = await window.supabaseClient
           .from('profiles')
           .select('is_shadow_banned')
           .eq('id', user.id)
@@ -831,7 +837,7 @@
             `;
             
             // Check file size (2GB limit)
-            if (file.size > 2147483648) {
+            if (file.size > (window.ENV?.MAX_UPLOAD_SIZE || 2147483648)) {
               fileInfo.style.borderColor = '#ff4444';
               fileInfo.innerHTML += '<br><span style="color: #ff4444;">❌ File exceeds 2GB limit!</span>';
               this.value = '';
@@ -851,7 +857,9 @@
           document.getElementById('titleCounter').textContent = '0/100';
           document.getElementById('descCounter').textContent = '0/5000';
           document.getElementById('fileInfo').style.display = 'none';
-          showNotification('Form cleared', 'info');
+          if (typeof showNotification === 'function') {
+            showNotification('Form cleared', 'info');
+          }
         });
       }
     });

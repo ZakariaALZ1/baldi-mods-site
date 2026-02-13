@@ -22,7 +22,7 @@ window.__SUPABASE_INIT_DONE__ = true;
 
 /* ✅ Create global supabase reference */
 window.supabaseClient = window.__SUPABASE_CLIENT__;
-const supabase = window.__SUPABASE_CLIENT__;
+const supabaseClient = window.__SUPABASE_CLIENT__;
 
 /* =========================
    GLOBAL STATE MANAGEMENT
@@ -591,7 +591,7 @@ function setLoading(button, isLoading, text = 'Loading...') {
 
 async function checkAuthState() {
   try {
-    const { data: { user }, error } = await supabase.auth.getUser();
+    const { data: { user }, error } = await supabaseClient.auth.getUser();
     
     if (error || !user) {
       currentUser = null;
@@ -603,14 +603,14 @@ async function checkAuthState() {
     }
     
     // Get or create profile
-    let { data: profile } = await supabase
+    let { data: profile } = await supabaseClient
       .from('profiles')
       .select('*')
       .eq('id', user.id)
       .single();
     
     if (!profile) {
-      const { data: newProfile } = await supabase
+      const { data: newProfile } = await supabaseClient
         .from('profiles')
         .insert({
           id: user.id,
@@ -652,7 +652,7 @@ async function checkAuthState() {
 function startSessionCheck() {
   if (sessionCheckInterval) clearInterval(sessionCheckInterval);
   sessionCheckInterval = setInterval(async () => {
-    const { data: { session } } = await supabase.auth.getSession();
+    const { data: { session } } = await supabaseClient.auth.getSession();
     if (!session) {
       showNotification('Session expired. Please login again.', 'info');
       await logout();
@@ -756,7 +756,7 @@ async function signUp() {
   setLoading(button, true, 'Creating account...');
   
   try {
-    const { data, error } = await supabase.auth.signUp({
+    const { data, error } = await supabaseClient.auth.signUp({
       email,
       password,
       options: {
@@ -771,7 +771,7 @@ async function signUp() {
     if (error) throw error;
     
     if (data.user) {
-      await supabase.from("profiles").upsert({
+      await supabaseClient.from("profiles").upsert({
         id: data.user.id,
         username: email.split('@')[0],
         email: email,
@@ -783,7 +783,7 @@ async function signUp() {
         download_count: 0
       }, { onConflict: 'id' });
       
-      const { error: signInError } = await supabase.auth.signInWithPassword({
+      const { error: signInError } = await supabaseClient.auth.signInWithPassword({
         email,
         password
       });
@@ -825,14 +825,14 @@ async function signIn() {
   setLoading(button, true, 'Logging in...');
   
   try {
-    const { data, error } = await supabase.auth.signInWithPassword({
+    const { data, error } = await supabaseClient.auth.signInWithPassword({
       email,
       password
     });
     
     if (error) throw error;
     
-    await supabase
+    await supabaseClient
       .from("profiles")
       .update({
         last_login: new Date().toISOString(),
@@ -861,7 +861,7 @@ async function signIn() {
 
 async function logout() {
   try {
-    await supabase.auth.signOut();
+    await supabaseClient.auth.signOut();
     currentUser = null;
     currentUserProfile = null;
     currentUserRole = null;
@@ -893,7 +893,7 @@ async function logout() {
 async function getCurrentUser() {
   if (currentUser) return currentUser;
   try {
-    const { data: { user } } = await supabase.auth.getUser();
+    const { data: { user } } = await supabaseClient.auth.getUser();
     currentUser = user;
     return user;
   } catch {
@@ -906,7 +906,7 @@ async function getCurrentUserRole() {
   const user = await getCurrentUser();
   if (!user) return null;
   try {
-    const { data } = await supabase
+    const { data } = await supabaseClient
       .from("profiles")
       .select("role")
       .eq("id", user.id)
@@ -1055,7 +1055,7 @@ async function uploadMod() {
     setLoading(button, true, '📤 Uploading...');
     progressDiv.innerHTML = '<div class="gb-loading-spinner"></div> 📤 Uploading file... This may take a while for large files.';
 
-    const { error: uploadError } = await supabase.storage
+    const { error: uploadError } = await supabaseClient.storage
       .from("baldi-mods")
       .upload(storagePath, file, {
         cacheControl: '3600',
@@ -1064,7 +1064,7 @@ async function uploadMod() {
 
     if (uploadError) throw uploadError;
 
-    const { data: urlData } = supabase.storage
+    const { data: urlData } = supabaseClient.storage
       .from("baldi-mods")
       .getPublicUrl(storagePath);
 
@@ -1073,7 +1073,7 @@ async function uploadMod() {
 
     const tagArray = tags ? tags.split(',').map(t => t.trim()).filter(t => t) : [];
 
-    const { error: dbError } = await supabase
+    const { error: dbError } = await supabaseClient
       .from("mods2")
       .insert([{
         title: title.trim(),
@@ -1104,10 +1104,10 @@ async function uploadMod() {
 
     if (dbError) throw dbError;
 
-    await supabase
+    await supabaseClient
       .from("profiles")
       .update({ 
-        upload_count: supabase.rpc('increment', { x: 1 }),
+        upload_count: supabaseClient.rpc('increment', { x: 1 }),
         updated_at: new Date().toISOString()
       })
       .eq("id", user.id);
@@ -1141,7 +1141,7 @@ async function loadMods() {
   if (!box) return;
 
   try {
-    let query = supabase
+    let query = supabaseClient
       .from("mods2")
       .select(`
         id,
@@ -1179,7 +1179,7 @@ async function loadMods() {
 
     // Get usernames
     const userIds = [...new Set(data.map(m => m.user_id))];
-    const { data: profiles } = await supabase
+    const { data: profiles } = await supabaseClient
       .from("profiles")
       .select("id, username, is_shadow_banned")
       .in("id", userIds);
@@ -1259,7 +1259,7 @@ async function loadMods() {
 
 async function trackDownload(modId) {
   try {
-    await supabase.rpc('increment_download_count', { mod_id: modId });
+    await supabaseClient.rpc('increment_download_count', { mod_id: modId });
   } catch (err) {
     console.error("Failed to track download:", err);
   }
@@ -1272,7 +1272,7 @@ async function reportMod(id) {
   }
   
   try {
-    const { error } = await supabase
+    const { error } = await supabaseClient
       .from("mods2")
       .update({ 
         reported: true,
@@ -1301,14 +1301,14 @@ async function loadProfilePage() {
   if (!user) return;
 
   try {
-    const { data: profile, error } = await supabase
+    const { data: profile, error } = await supabaseClient
       .from('profiles')
       .select('*')
       .eq('id', user.id)
       .single();
 
     if (error && error.code === 'PGRST116') {
-      const { data: newProfile } = await supabase
+      const { data: newProfile } = await supabaseClient
         .from('profiles')
         .insert({
           id: user.id,
@@ -1471,7 +1471,7 @@ async function loadMyMods() {
   if (!user) return;
 
   try {
-    const { data, error } = await supabase
+    const { data, error } = await supabaseClient
       .from("mods2")
       .select("*")
       .eq("user_id", user.id)
@@ -1527,7 +1527,7 @@ async function loadUserStats() {
   if (!user) return;
 
   try {
-    const { data: mods } = await supabase
+    const { data: mods } = await supabaseClient
       .from('mods2')
       .select('*')
       .eq('user_id', user.id);
@@ -1564,7 +1564,7 @@ async function updateProfile() {
   setLoading(button, true, 'Saving...');
 
   try {
-    const { error } = await supabase
+    const { error } = await supabaseClient
       .from('profiles')
       .update({
         username: displayName,
@@ -1620,13 +1620,13 @@ async function loadAdminStats() {
       { count: verifiedUsers },
       { data: mods }
     ] = await Promise.all([
-      supabase.from("mods2").select("*", { count: 'exact', head: true }),
-      supabase.from("mods2").select("*", { count: 'exact', head: true }).eq("approved", false).eq("quarantine", false),
-      supabase.from("mods2").select("*", { count: 'exact', head: true }).eq("reported", true),
-      supabase.from("mods2").select("*", { count: 'exact', head: true }).eq("quarantine", true),
-      supabase.from("profiles").select("*", { count: 'exact', head: true }),
-      supabase.from("profiles").select("*", { count: 'exact', head: true }).eq("is_verified", true),
-      supabase.from("mods2").select("download_count")
+      supabaseClient.from("mods2").select("*", { count: 'exact', head: true }),
+      supabaseClient.from("mods2").select("*", { count: 'exact', head: true }).eq("approved", false).eq("quarantine", false),
+      supabaseClient.from("mods2").select("*", { count: 'exact', head: true }).eq("reported", true),
+      supabaseClient.from("mods2").select("*", { count: 'exact', head: true }).eq("quarantine", true),
+      supabaseClient.from("profiles").select("*", { count: 'exact', head: true }),
+      supabaseClient.from("profiles").select("*", { count: 'exact', head: true }).eq("is_verified", true),
+      supabaseClient.from("mods2").select("download_count")
     ]);
     
     const totalDownloads = mods?.reduce((sum, m) => sum + (m.download_count || 0), 0) || 0;
@@ -1686,7 +1686,7 @@ async function loadFlaggedMods() {
   if (!box || !await isAdmin()) return;
   
   try {
-    const { data, error } = await supabase
+    const { data, error } = await supabaseClient
       .from("mods2")
       .select(`
         id,
@@ -1740,7 +1740,7 @@ async function loadRiskUsers() {
   if (!box || !await isAdmin()) return;
   
   try {
-    const { data, error } = await supabase
+    const { data, error } = await supabaseClient
       .from("profiles")
       .select(`
         id,
@@ -1801,7 +1801,7 @@ async function loadQuarantineMods() {
   if (!box || !await isAdmin()) return;
   
   try {
-    const { data, error } = await supabase
+    const { data, error } = await supabaseClient
       .from("mods2")
       .select(`
         id,
@@ -1851,7 +1851,7 @@ async function loadPendingMods() {
   if (!box || !await isModerator()) return;
   
   try {
-    const { data, error } = await supabase
+    const { data, error } = await supabaseClient
       .from("mods2")
       .select(`
         id,
@@ -1937,7 +1937,7 @@ async function loadReportedMods() {
   if (!box || !await isModerator()) return;
   
   try {
-    const { data, error } = await supabase
+    const { data, error } = await supabaseClient
       .from("mods2")
       .select(`
         id,
@@ -1990,7 +1990,7 @@ async function approveMod(id) {
   if (!confirm('Approve this mod? It will be public immediately.')) return;
   
   try {
-    const { error } = await supabase
+    const { error } = await supabaseClient
       .from("mods2")
       .update({ 
         approved: true,
@@ -2016,7 +2016,7 @@ async function rejectMod(id) {
   if (!reason) return;
   
   try {
-    const { error } = await supabase
+    const { error } = await supabaseClient
       .from("mods2")
       .update({ 
         approved: false,
@@ -2040,7 +2040,7 @@ async function quarantineMod(id) {
   if (!confirm('Quarantine this mod? It will be hidden from users.')) return;
   
   try {
-    const { error } = await supabase
+    const { error } = await supabaseClient
       .from("mods2")
       .update({ 
         quarantine: true,
@@ -2066,13 +2066,13 @@ async function deleteMod(id) {
   if (!confirm('⚠️ Permanently delete this mod? This cannot be undone.')) return;
   
   try {
-    const { data: mod } = await supabase
+    const { data: mod } = await supabaseClient
       .from("mods2")
       .select("file_storage_path")
       .eq("id", id)
       .single();
     
-    const { error } = await supabase
+    const { error } = await supabaseClient
       .from("mods2")
       .delete()
       .eq("id", id);
@@ -2080,7 +2080,7 @@ async function deleteMod(id) {
     if (error) throw error;
     
     if (mod?.file_storage_path) {
-      await supabase.storage.from("baldi-mods").remove([mod.file_storage_path]);
+      await supabaseClient.storage.from("baldi-mods").remove([mod.file_storage_path]);
     }
     
     showNotification("✅ Mod deleted", "success");
@@ -2097,7 +2097,7 @@ async function clearReport(id) {
   if (!await isModerator()) return;
   
   try {
-    const { error } = await supabase
+    const { error } = await supabaseClient
       .from("mods2")
       .update({ 
         reported: false,
@@ -2121,7 +2121,7 @@ async function shadowBanUser(userId) {
   if (!confirm('⚠️ Shadow ban this user? Their content will be hidden.')) return;
   
   try {
-    const { error } = await supabase
+    const { error } = await supabaseClient
       .from("profiles")
       .update({ 
         is_shadow_banned: true,
@@ -2143,7 +2143,7 @@ async function removeShadowBan(userId) {
   if (!await isAdmin()) return;
   
   try {
-    const { error } = await supabase
+    const { error } = await supabaseClient
       .from("profiles")
       .update({ 
         is_shadow_banned: false,
@@ -2165,7 +2165,7 @@ async function verifyUser(userId) {
   if (!await isAdmin()) return;
   
   try {
-    const { error } = await supabase
+    const { error } = await supabaseClient
       .from("profiles")
       .update({ 
         is_verified: true,
@@ -2187,7 +2187,7 @@ async function resetTrustScore(userId) {
   if (!await isAdmin()) return;
   
   try {
-    const { error } = await supabase
+    const { error } = await supabaseClient
       .from("profiles")
       .update({ 
         trust_score: 100,
@@ -2209,7 +2209,7 @@ async function clearFlags(modId) {
   if (!await isAdmin()) return;
   
   try {
-    const { error } = await supabase
+    const { error } = await supabaseClient
       .from("mods2")
       .update({ 
         risk_score: 0,
@@ -2247,7 +2247,7 @@ async function loadModPage() {
   }
 
   try {
-    const { data: mod, error } = await supabase
+    const { data: mod, error } = await supabaseClient
       .from("mods2")
       .select("*")
       .eq("id", id)
@@ -2259,7 +2259,7 @@ async function loadModPage() {
       return;
     }
 
-    await supabase.rpc('increment_view_count', { mod_id: mod.id }).catch(() => {});
+    await supabaseClient.rpc('increment_view_count', { mod_id: mod.id }).catch(() => {});
 
     const modContainer = document.getElementById("mod");
     if (modContainer) {
@@ -2388,7 +2388,7 @@ window.loadUserStats = loadUserStats;
 window.loadModPage = loadModPage;
 
 // Also expose as window.supabaseClient for clarity
-window.supabaseClient = supabase;
+window.supabaseClient = supabaseClient;
 
 // Initialize auth state
 document.addEventListener('DOMContentLoaded', checkAuthState);

@@ -1,31 +1,28 @@
 /* =========================
    SECURE SUPABASE INIT 
+   (Vercel Env Vars FIRST, config.js fallback)
 ========================= */
 
-// Check for Vercel environment variables first, then config.js
 (function() {
   // Check if Supabase library is loaded
   if (typeof window.supabase === 'undefined') {
     console.error('❌ Supabase library not loaded!');
-    const errorMsg = document.createElement('div');
-    errorMsg.style.cssText = 'position:fixed; top:0; left:0; right:0; background:#ff4444; color:white; padding:15px; text-align:center; z-index:9999;';
-    errorMsg.textContent = '❌ Supabase library failed to load. Please refresh.';
-    document.body.prepend(errorMsg);
+    showErrorBanner('Supabase library failed to load. Please refresh.');
     return;
   }
 
   // Get config from Vercel env or window.ENV
   const SUPABASE_URL = typeof process !== 'undefined' && process.env?.NEXT_PUBLIC_SUPABASE_URL 
     ? process.env.NEXT_PUBLIC_SUPABASE_URL 
-    : window.ENV?.SUPABASE_URL || "https://deovtpdjugfkccnpxfsm.supabase.co";
+    : window.ENV?.SUPABASE_URL;
     
   const SUPABASE_ANON_KEY = typeof process !== 'undefined' && process.env?.NEXT_PUBLIC_SUPABASE_ANON_KEY
     ? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
     : window.ENV?.SUPABASE_ANON_KEY;
 
-  if (!SUPABASE_ANON_KEY) {
-    console.error('❌ Supabase anon key missing!');
-    alert('Security configuration missing. Please add environment variables in Vercel.');
+  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+    console.error('❌ Supabase configuration missing!');
+    showErrorBanner('Supabase configuration missing. Please add environment variables in Vercel.');
     return;
   }
 
@@ -54,7 +51,7 @@
       console.log('✅ Supabase client initialized');
     } catch (err) {
       console.error('❌ Failed to create Supabase client:', err);
-      alert('Failed to initialize. Please refresh.');
+      showErrorBanner('Failed to initialize Supabase. Please refresh.');
       return;
     }
   }
@@ -62,7 +59,27 @@
   window.supabase = window.__SUPABASE_CLIENT__;
 })();
 
+// DECLARE ONCE - NO DUPLICATES!
 const supabase = window.supabase;
+
+// Helper for error banner
+function showErrorBanner(message) {
+  const banner = document.createElement('div');
+  banner.style.cssText = `
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    background: #ff4444;
+    color: white;
+    padding: 15px;
+    text-align: center;
+    z-index: 99999;
+    font-weight: bold;
+  `;
+  banner.textContent = `❌ ${message}`;
+  document.body.prepend(banner);
+}
 
 /* =========================
    GLOBAL STATE MANAGEMENT
@@ -73,6 +90,51 @@ let currentUserProfile = null;
 let currentUserRole = null;
 let isAuthenticated = false;
 let sessionCheckInterval = null;
+let inactivityTimer = null;
+let csrfToken = null;
+
+/* =========================
+   SECURITY HELPERS
+========================= */
+
+// Generate CSRF token
+function generateCSRFToken() {
+  csrfToken = crypto.randomUUID?.() || Math.random().toString(36).substring(2);
+  sessionStorage.setItem('csrf_token', csrfToken);
+  return csrfToken;
+}
+
+// Validate CSRF token
+function validateCSRFToken(token) {
+  const stored = sessionStorage.getItem('csrf_token');
+  return stored && token === stored;
+}
+
+// Sanitize user input
+function sanitizeInput(str) {
+  if (!str) return '';
+  return str
+    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+    .replace(/on\w+="[^"]*"/gi, '')
+    .replace(/javascript:/gi, '')
+    .trim();
+}
+
+// Inactivity timeout
+function resetInactivityTimer() {
+  if (inactivityTimer) clearTimeout(inactivityTimer);
+  inactivityTimer = setTimeout(async () => {
+    if (isAuthenticated) {
+      await logout();
+      showNotification('Session expired due to inactivity', 'info');
+    }
+  }, 3600000); // 1 hour
+}
+
+// Add activity listeners
+['click', 'keypress', 'scroll', 'mousemove'].forEach(event => {
+  document.addEventListener(event, resetInactivityTimer);
+});
 
 /* =========================
    GAMEBANANA STYLE NOTIFICATIONS
@@ -143,6 +205,9 @@ style.textContent = `
     from { transform: translateX(0); opacity: 1; }
     to { transform: translateX(100%); opacity: 0; }
   }
+  @keyframes gbSpin {
+    to { transform: rotate(360deg); }
+  }
   .gb-loading-spinner {
     display: inline-block;
     width: 16px;
@@ -152,9 +217,6 @@ style.textContent = `
     border-radius: 50%;
     animation: gbSpin 0.8s linear infinite;
     margin-right: 8px;
-  }
-  @keyframes gbSpin {
-    to { transform: rotate(360deg); }
   }
   .gb-badge {
     display: inline-block;
@@ -207,6 +269,313 @@ style.textContent = `
   .gb-btn-secondary {
     background: #333;
     color: white;
+  }
+  .gb-nav-container {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    flex-wrap: wrap;
+  }
+  .gb-nav-item {
+    color: white;
+    text-decoration: none;
+    padding: 8px 16px;
+    border-radius: 5px;
+  }
+  .gb-nav-item:hover {
+    background: #333;
+  }
+  .gb-nav-item.active {
+    background: #00ff88;
+    color: black;
+  }
+  .gb-nav-disabled {
+    color: #666;
+    padding: 8px 16px;
+    cursor: not-allowed;
+    opacity: 0.7;
+  }
+  .gb-nav-user {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .gb-nav-points {
+    background: #333;
+    padding: 4px 12px;
+    border-radius: 20px;
+    color: #00ff88;
+    font-size: 12px;
+  }
+  .gb-profile-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+    display: grid;
+    grid-template-columns: 300px 1fr;
+    gap: 30px;
+  }
+  .gb-profile-sidebar {
+    background: #1a1a1a;
+    padding: 30px;
+    border-radius: 10px;
+    border: 1px solid #333;
+  }
+  .gb-profile-avatar {
+    text-align: center;
+    margin-bottom: 20px;
+  }
+  .gb-avatar {
+    width: 120px;
+    height: 120px;
+    background: linear-gradient(45deg, #00ff88, #00cc66);
+    border-radius: 50%;
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 48px;
+    font-weight: bold;
+    color: black;
+  }
+  .gb-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 15px;
+    margin: 20px 0;
+    padding: 20px 0;
+    border-top: 1px solid #333;
+    border-bottom: 1px solid #333;
+  }
+  .gb-stat {
+    text-align: center;
+  }
+  .gb-stat-value {
+    display: block;
+    font-size: 24px;
+    font-weight: bold;
+    color: #00ff88;
+  }
+  .gb-stat-label {
+    font-size: 12px;
+    color: #ccc;
+  }
+  .gb-trust-score {
+    margin: 20px 0;
+  }
+  .gb-trust-label {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 5px;
+  }
+  .gb-trust-bar {
+    height: 8px;
+    background: #333;
+    border-radius: 4px;
+    overflow: hidden;
+  }
+  .gb-trust-fill {
+    height: 100%;
+    border-radius: 4px;
+    transition: width 0.3s ease;
+  }
+  .gb-trust-value {
+    text-align: right;
+    margin-top: 5px;
+    font-weight: bold;
+  }
+  .gb-profile-bio {
+    margin-top: 20px;
+  }
+  .gb-profile-bio h3 {
+    color: #00ff88;
+    margin-bottom: 10px;
+  }
+  .gb-profile-bio p {
+    color: #ccc;
+    line-height: 1.6;
+  }
+  .gb-profile-main {
+    background: #1a1a1a;
+    padding: 30px;
+    border-radius: 10px;
+    border: 1px solid #333;
+  }
+  .gb-tabs {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 30px;
+    border-bottom: 1px solid #333;
+    padding-bottom: 10px;
+  }
+  .gb-tab {
+    padding: 10px 20px;
+    background: transparent;
+    color: #ccc;
+    border: none;
+    cursor: pointer;
+    font-size: 16px;
+  }
+  .gb-tab.active {
+    color: #00ff88;
+    border-bottom: 2px solid #00ff88;
+  }
+  .gb-tab-content {
+    display: none;
+  }
+  .gb-tab-content.active {
+    display: block;
+  }
+  .gb-stats-detailed {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 20px;
+    margin-top: 20px;
+  }
+  .gb-stat-card {
+    background: #222;
+    padding: 20px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+  }
+  .gb-stat-icon {
+    font-size: 32px;
+  }
+  .gb-stat-info {
+    flex: 1;
+  }
+  .gb-stat-number {
+    font-size: 24px;
+    font-weight: bold;
+    color: #00ff88;
+  }
+  .gb-settings-form {
+    max-width: 500px;
+  }
+  .gb-form-group {
+    margin-bottom: 20px;
+  }
+  .gb-form-group label {
+    display: block;
+    margin-bottom: 5px;
+    color: #ccc;
+  }
+  .gb-form-group input,
+  .gb-form-group textarea {
+    width: 100%;
+    padding: 10px;
+    background: #222;
+    border: 1px solid #333;
+    color: white;
+    border-radius: 5px;
+  }
+  .gb-form-group input:focus,
+  .gb-form-group textarea:focus {
+    outline: none;
+    border-color: #00ff88;
+  }
+  .gb-char-counter {
+    display: block;
+    text-align: right;
+    font-size: 12px;
+    color: #ccc;
+    margin-top: 5px;
+  }
+  .gb-mod-page {
+    max-width: 1000px;
+    margin: 0 auto;
+    padding: 30px;
+  }
+  .gb-mod-header {
+    margin-bottom: 30px;
+  }
+  .gb-mod-header h1 {
+    font-size: 36px;
+    margin-bottom: 15px;
+  }
+  .gb-mod-badges {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .gb-mod-meta-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 20px;
+    margin-bottom: 30px;
+    padding: 20px;
+    background: #222;
+    border-radius: 8px;
+  }
+  .gb-meta-item {
+    display: flex;
+    flex-direction: column;
+  }
+  .gb-meta-label {
+    font-size: 12px;
+    color: #ccc;
+    margin-bottom: 5px;
+  }
+  .gb-meta-value {
+    font-size: 16px;
+    font-weight: bold;
+    color: #00ff88;
+  }
+  .gb-mod-description {
+    margin-bottom: 30px;
+  }
+  .gb-mod-description h2 {
+    margin-bottom: 15px;
+  }
+  .gb-description-content {
+    background: #222;
+    padding: 20px;
+    border-radius: 8px;
+    line-height: 1.6;
+    white-space: pre-wrap;
+  }
+  .gb-tag-list {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-top: 10px;
+  }
+  .gb-tag {
+    background: #333;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    color: #00ff88;
+  }
+  .gb-mod-actions {
+    display: flex;
+    gap: 15px;
+    margin-top: 30px;
+  }
+  .gb-btn-large {
+    padding: 15px 30px;
+    font-size: 18px;
+  }
+  .gb-error-container {
+    text-align: center;
+    padding: 50px;
+  }
+  .gb-no-results {
+    text-align: center;
+    padding: 60px;
+    color: #ccc;
+    background: #1a1a1a;
+    border-radius: 10px;
+  }
+  .gb-error {
+    text-align: center;
+    padding: 40px;
+    color: #ff4444;
+    background: #1a1a1a;
+    border-radius: 8px;
   }
 `;
 document.head.appendChild(style);
@@ -329,6 +698,7 @@ async function checkAuthState() {
     
     showAuthenticatedUI(user, profile);
     startSessionCheck();
+    resetInactivityTimer();
     
   } catch (err) {
     console.error('Auth check failed:', err);
@@ -557,6 +927,11 @@ async function logout() {
     if (sessionCheckInterval) {
       clearInterval(sessionCheckInterval);
       sessionCheckInterval = null;
+    }
+    
+    if (inactivityTimer) {
+      clearTimeout(inactivityTimer);
+      inactivityTimer = null;
     }
     
     showNotification("👋 Logged out successfully", "success");
@@ -857,11 +1232,27 @@ async function loadMods() {
       return;
     }
 
+    // Get usernames
+    const userIds = [...new Set(data.map(m => m.user_id))];
+    const { data: profiles } = await supabase
+      .from("profiles")
+      .select("id, username, is_shadow_banned")
+      .in("id", userIds);
+
+    const profileMap = {};
+    profiles?.forEach(p => {
+      if (!p.is_shadow_banned) {
+        profileMap[p.id] = p.username;
+      }
+    });
+
     box.innerHTML = data.map(mod => {
+      if (!profileMap[mod.user_id]) return '';
+      
       const modId = escapeHTML(mod.id);
       const title = escapeHTML(mod.title);
       const description = escapeHTML(mod.description.substring(0, 120) + (mod.description.length > 120 ? '...' : ''));
-      const author = escapeHTML(mod.author_name || 'Unknown');
+      const author = escapeHTML(profileMap[mod.user_id] || 'Unknown');
       const version = escapeHTML(mod.version || '1.0.0');
       const fileSize = mod.file_size ? formatFileSize(mod.file_size) : 'Unknown';
       const date = new Date(mod.created_at).toLocaleDateString();
@@ -873,29 +1264,34 @@ async function loadMods() {
         riskBadge = '<span class="gb-badge" style="background:#ffaa00;">⚠️ Medium Risk</span>';
       }
       
+      let baldiBadge = '';
+      if (mod.baldi_version) {
+        baldiBadge = `<span class="gb-badge">🎮 ${escapeHTML(mod.baldi_version)}</span>`;
+      }
+      
       return `
         <div class="gb-card mod-card" data-mod-id="${modId}">
-          <div class="mod-header">
-            <h3><a href="mod.html?id=${encodeURIComponent(modId)}">${title}</a></h3>
-            ${riskBadge}
+          <div class="mod-header" style="display: flex; justify-content: space-between; align-items: start;">
+            <h3 style="margin: 0;"><a href="mod.html?id=${encodeURIComponent(modId)}" style="color: #00ff88; text-decoration: none;">${title}</a></h3>
+            <div>${riskBadge}</div>
           </div>
-          <div class="mod-meta">
-            <span class="mod-version">📦 v${version}</span>
-            <span class="mod-author">👤 ${author}</span>
-            <span class="mod-baldi">🎮 ${escapeHTML(mod.baldi_version || 'Any')}</span>
-            <span class="mod-date">📅 ${date}</span>
+          <div style="display: flex; gap: 10px; margin: 15px 0; font-size: 12px; color: #ccc; flex-wrap: wrap;">
+            <span style="background: #333; padding: 4px 8px; border-radius: 4px;">📦 v${version}</span>
+            <span style="background: #333; padding: 4px 8px; border-radius: 4px;">👤 ${author}</span>
+            ${baldiBadge}
+            <span style="background: #333; padding: 4px 8px; border-radius: 4px;">📅 ${date}</span>
           </div>
-          <p class="mod-description">${description}</p>
-          <div class="mod-tags">
-            ${mod.tags?.slice(0, 3).map(tag => `<span class="mod-tag">#${escapeHTML(tag)}</span>`).join('') || ''}
+          <p style="color: #ccc; line-height: 1.6; margin-bottom: 15px;">${description}</p>
+          <div style="display: flex; gap: 8px; margin-bottom: 15px;">
+            ${mod.tags?.slice(0, 3).map(tag => `<span style="background: #333; padding: 4px 12px; border-radius: 20px; font-size: 12px; color: #00ff88;">#${escapeHTML(tag)}</span>`).join('') || ''}
           </div>
-          <div class="mod-footer">
-            <div class="mod-stats">
-              <span class="mod-downloads">📥 ${mod.download_count || 0}</span>
-              <span class="mod-views">👁️ ${mod.view_count || 0}</span>
-              <span class="mod-size">💾 ${fileSize}</span>
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 15px;">
+            <div style="display: flex; gap: 15px;">
+              <span style="color: #00ff88; font-weight: bold;">📥 ${mod.download_count || 0}</span>
+              <span style="color: #00ff88; font-weight: bold;">👁️ ${mod.view_count || 0}</span>
+              <span style="color: #00ff88; font-weight: bold;">💾 ${fileSize}</span>
             </div>
-            <div class="mod-actions">
+            <div style="display: flex; gap: 10px;">
               <a href="${escapeHTML(mod.file_url)}" 
                  class="gb-btn gb-btn-primary"
                  target="_blank" 
@@ -1012,8 +1408,10 @@ function renderProfile(profile, user) {
           <div class="gb-avatar">${username.charAt(0).toUpperCase()}</div>
           ${profile?.is_verified ? '<span class="gb-badge verified">✅ VERIFIED</span>' : ''}
         </div>
-        <h2>${escapeHTML(username)}</h2>
-        <div class="gb-role-badge ${profile?.role || 'user'}">${profile?.role?.toUpperCase() || 'USER'}</div>
+        <h2 style="text-align: center; margin: 10px 0 5px; color: #00ff88;">${escapeHTML(username)}</h2>
+        <div style="text-align: center; color: #ccc; margin-bottom: 20px;">
+          <span class="gb-badge ${profile?.role || 'user'}">${profile?.role?.toUpperCase() || 'USER'}</span>
+        </div>
         
         <div class="gb-stats-grid">
           <div class="gb-stat">
@@ -1031,11 +1429,13 @@ function renderProfile(profile, user) {
         </div>
         
         <div class="gb-trust-score">
-          <div class="gb-trust-label">Trust Score</div>
+          <div class="gb-trust-label">
+            <span>Trust Score</span>
+            <span>${trustScore}</span>
+          </div>
           <div class="gb-trust-bar">
             <div class="gb-trust-fill" style="width:${trustScore}%; background:${trustColor};"></div>
           </div>
-          <div class="gb-trust-value">${trustScore}</div>
         </div>
         
         <div class="gb-profile-bio">
@@ -1053,7 +1453,7 @@ function renderProfile(profile, user) {
         
         <div id="uploads-tab" class="gb-tab-content active">
           <h3>My Uploaded Mods</h3>
-          <div id="myMods" class="gb-mods-grid"></div>
+          <div id="myMods" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; margin-top: 20px;"></div>
         </div>
         
         <div id="stats-tab" class="gb-tab-content">
@@ -1103,6 +1503,10 @@ function renderProfile(profile, user) {
               <textarea id="userBio" rows="4" maxlength="500" placeholder="Tell us about yourself...">${escapeHTML(profile?.bio || '')}</textarea>
               <span class="gb-char-counter" id="bioCounter">${profile?.bio?.length || 0}/500</span>
             </div>
+            <div class="gb-form-group">
+              <label>Email</label>
+              <input type="email" value="${escapeHTML(user.email)}" disabled style="background: #333; opacity: 0.7;">
+            </div>
             <button type="button" onclick="updateProfile()" class="gb-btn gb-btn-primary">💾 Save Changes</button>
           </form>
         </div>
@@ -1111,6 +1515,7 @@ function renderProfile(profile, user) {
   `;
   
   loadUserStats();
+  loadMyMods();
 }
 
 async function loadMyMods() {
@@ -1138,29 +1543,29 @@ async function loadMyMods() {
       let status = '', statusClass = '';
       if (mod.quarantine) {
         status = '⚠️ Quarantined';
-        statusClass = 'gb-status-quarantined';
+        statusClass = 'background: #ff4444; color: white;';
       } else if (mod.approved) {
         status = '✅ Approved';
-        statusClass = 'gb-status-approved';
+        statusClass = 'background: #00ff88; color: black;';
       } else {
         status = '⏳ Pending Review';
-        statusClass = 'gb-status-pending';
+        statusClass = 'background: #ffaa00; color: black;';
       }
       
       return `
-        <div class="gb-card mod-card">
-          <h4>${escapeHTML(mod.title)}</h4>
-          <div class="gb-status ${statusClass}">${status}</div>
-          <div class="gb-mod-meta">
+        <div class="gb-card" style="padding: 20px;">
+          <h4 style="margin: 0 0 10px 0; color: #fff;">${escapeHTML(mod.title)}</h4>
+          <div style="display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 12px; margin: 10px 0; ${statusClass}">${status}</div>
+          <div style="margin: 10px 0; color: #ccc; font-size: 12px;">
             <span>📦 v${escapeHTML(mod.version || '1.0.0')}</span>
-            <span>📥 ${mod.download_count || 0} downloads</span>
-            <span>📅 ${new Date(mod.created_at).toLocaleDateString()}</span>
+            <span style="margin-left: 15px;">📥 ${mod.download_count || 0} downloads</span>
+            <span style="margin-left: 15px;">📅 ${new Date(mod.created_at).toLocaleDateString()}</span>
           </div>
-          ${mod.scan_reason ? `<p class="gb-scan-note">ℹ️ ${escapeHTML(mod.scan_reason)}</p>` : ''}
-          <div class="gb-mod-actions">
-            <a href="${escapeHTML(mod.file_url)}" target="_blank" class="gb-btn gb-btn-primary">📥 Download</a>
+          ${mod.scan_reason ? `<p style="color: #ffaa00; font-size: 12px;">ℹ️ ${escapeHTML(mod.scan_reason)}</p>` : ''}
+          <div style="display: flex; gap: 10px; margin-top: 15px;">
+            <a href="${escapeHTML(mod.file_url)}" target="_blank" class="gb-btn gb-btn-primary" style="padding: 8px 16px; font-size: 14px;">📥 Download</a>
             ${!mod.approved && !mod.quarantine ? 
-              `<button onclick="deleteMod('${mod.id}')" class="gb-btn gb-btn-danger">🗑️ Delete</button>` : ''}
+              `<button onclick="deleteMod('${mod.id}')" class="gb-btn gb-btn-danger" style="padding: 8px 16px; font-size: 14px;">🗑️ Delete</button>` : ''}
           </div>
         </div>
       `;
@@ -1282,62 +1687,46 @@ async function loadAdminStats() {
     const totalDownloads = mods?.reduce((sum, m) => sum + (m.download_count || 0), 0) || 0;
     
     box.innerHTML = `
-      <div class="gb-stats-grid">
-        <div class="gb-stat-card admin">
-          <div class="gb-stat-icon">📦</div>
-          <div class="gb-stat-details">
-            <span class="gb-stat-label">Total Mods</span>
-            <span class="gb-stat-value">${totalMods || 0}</span>
-          </div>
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 30px;">
+        <div style="background: #1a1a1a; padding: 25px; border-radius: 10px; border-left: 4px solid #00ff88;">
+          <div style="font-size: 32px; margin-bottom: 10px;">📦</div>
+          <div style="font-size: 14px; color: #ccc;">Total Mods</div>
+          <div style="font-size: 36px; font-weight: bold; color: #00ff88;">${totalMods || 0}</div>
         </div>
-        <div class="gb-stat-card admin">
-          <div class="gb-stat-icon">⏳</div>
-          <div class="gb-stat-details">
-            <span class="gb-stat-label">Pending</span>
-            <span class="gb-stat-value">${pendingMods || 0}</span>
-          </div>
+        <div style="background: #1a1a1a; padding: 25px; border-radius: 10px; border-left: 4px solid #ffaa00;">
+          <div style="font-size: 32px; margin-bottom: 10px;">⏳</div>
+          <div style="font-size: 14px; color: #ccc;">Pending</div>
+          <div style="font-size: 36px; font-weight: bold; color: #ffaa00;">${pendingMods || 0}</div>
         </div>
-        <div class="gb-stat-card admin">
-          <div class="gb-stat-icon">🚩</div>
-          <div class="gb-stat-details">
-            <span class="gb-stat-label">Reported</span>
-            <span class="gb-stat-value">${reportedMods || 0}</span>
-          </div>
+        <div style="background: #1a1a1a; padding: 25px; border-radius: 10px; border-left: 4px solid #ff4444;">
+          <div style="font-size: 32px; margin-bottom: 10px;">🚩</div>
+          <div style="font-size: 14px; color: #ccc;">Reported</div>
+          <div style="font-size: 36px; font-weight: bold; color: #ff4444;">${reportedMods || 0}</div>
         </div>
-        <div class="gb-stat-card admin">
-          <div class="gb-stat-icon">☣️</div>
-          <div class="gb-stat-details">
-            <span class="gb-stat-label">Quarantined</span>
-            <span class="gb-stat-value">${quarantinedMods || 0}</span>
-          </div>
+        <div style="background: #1a1a1a; padding: 25px; border-radius: 10px; border-left: 4px solid #ffaa00;">
+          <div style="font-size: 32px; margin-bottom: 10px;">☣️</div>
+          <div style="font-size: 14px; color: #ccc;">Quarantined</div>
+          <div style="font-size: 36px; font-weight: bold; color: #ffaa00;">${quarantinedMods || 0}</div>
         </div>
-        <div class="gb-stat-card admin">
-          <div class="gb-stat-icon">👥</div>
-          <div class="gb-stat-details">
-            <span class="gb-stat-label">Total Users</span>
-            <span class="gb-stat-value">${totalUsers || 0}</span>
-          </div>
+        <div style="background: #1a1a1a; padding: 25px; border-radius: 10px; border-left: 4px solid #2196f3;">
+          <div style="font-size: 32px; margin-bottom: 10px;">👥</div>
+          <div style="font-size: 14px; color: #ccc;">Total Users</div>
+          <div style="font-size: 36px; font-weight: bold; color: #2196f3;">${totalUsers || 0}</div>
         </div>
-        <div class="gb-stat-card admin">
-          <div class="gb-stat-icon">✅</div>
-          <div class="gb-stat-details">
-            <span class="gb-stat-label">Verified</span>
-            <span class="gb-stat-value">${verifiedUsers || 0}</span>
-          </div>
+        <div style="background: #1a1a1a; padding: 25px; border-radius: 10px; border-left: 4px solid #00ff88;">
+          <div style="font-size: 32px; margin-bottom: 10px;">✅</div>
+          <div style="font-size: 14px; color: #ccc;">Verified</div>
+          <div style="font-size: 36px; font-weight: bold; color: #00ff88;">${verifiedUsers || 0}</div>
         </div>
-        <div class="gb-stat-card admin">
-          <div class="gb-stat-icon">📥</div>
-          <div class="gb-stat-details">
-            <span class="gb-stat-label">Downloads</span>
-            <span class="gb-stat-value">${totalDownloads || 0}</span>
-          </div>
+        <div style="background: #1a1a1a; padding: 25px; border-radius: 10px; border-left: 4px solid #00ff88;">
+          <div style="font-size: 32px; margin-bottom: 10px;">📥</div>
+          <div style="font-size: 14px; color: #ccc;">Downloads</div>
+          <div style="font-size: 36px; font-weight: bold; color: #00ff88;">${totalDownloads || 0}</div>
         </div>
-        <div class="gb-stat-card admin">
-          <div class="gb-stat-icon">💾</div>
-          <div class="gb-stat-details">
-            <span class="gb-stat-label">Storage</span>
-            <span class="gb-stat-value">2GB Limit</span>
-          </div>
+        <div style="background: #1a1a1a; padding: 25px; border-radius: 10px; border-left: 4px solid #00ff88;">
+          <div style="font-size: 32px; margin-bottom: 10px;">💾</div>
+          <div style="font-size: 14px; color: #ccc;">Storage</div>
+          <div style="font-size: 36px; font-weight: bold; color: #00ff88;">2GB Limit</div>
         </div>
       </div>
     `;
@@ -1377,18 +1766,18 @@ async function loadFlaggedMods() {
     }
     
     box.innerHTML = data.map(mod => `
-      <div class="gb-card flagged">
-        <div class="gb-card-header">
-          <h3>${escapeHTML(mod.title)}</h3>
+      <div class="gb-card" style="border-left: 4px solid #ff4444;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+          <h3 style="margin: 0; color: #fff;">${escapeHTML(mod.title)}</h3>
           <span class="gb-badge" style="background:#ff4444;">⚠️ RISK ${mod.risk_score || 0}</span>
         </div>
-        <div class="gb-card-meta">
+        <div style="display: flex; gap: 20px; margin-bottom: 15px; color: #ccc; font-size: 14px;">
           <span>👤 ${escapeHTML(mod.author_name || 'Unknown')}</span>
           <span>📥 ${mod.download_count || 0}</span>
           <span>📅 ${new Date(mod.created_at).toLocaleDateString()}</span>
         </div>
-        <p class="gb-scan-reason">${escapeHTML(mod.scan_reason || 'High risk score')}</p>
-        <div class="gb-card-actions">
+        <p style="color: #ffaa00; margin-bottom: 15px;">${escapeHTML(mod.scan_reason || 'High risk score')}</p>
+        <div style="display: flex; gap: 10px;">
           <button onclick="quarantineMod('${mod.id}')" class="gb-btn gb-btn-warning">⚠️ Quarantine</button>
           <button onclick="deleteMod('${mod.id}')" class="gb-btn gb-btn-danger">🗑️ Delete</button>
           <button onclick="clearFlags('${mod.id}')" class="gb-btn gb-btn-secondary">✓ Clear</button>
@@ -1431,22 +1820,20 @@ async function loadRiskUsers() {
     }
     
     box.innerHTML = data.map(user => `
-      <div class="gb-card ${user.is_shadow_banned ? 'banned' : ''}">
-        <div class="gb-card-header">
-          <h3>${escapeHTML(user.username || 'Unknown')}</h3>
-          <span class="gb-badge" style="background:${user.trust_score < 30 ? '#ff4444' : '#ffaa00'};">
-            Trust: ${user.trust_score || 0}
-          </span>
+      <div class="gb-card" style="border-left: 4px solid ${user.is_shadow_banned ? '#ff4444' : '#ffaa00'};">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+          <h3 style="margin: 0; color: #fff;">${escapeHTML(user.username || 'Unknown')}</h3>
+          <span class="gb-badge" style="background:${user.trust_score < 30 ? '#ff4444' : '#ffaa00'};">Trust: ${user.trust_score || 0}</span>
         </div>
-        <div class="gb-card-meta">
+        <div style="display: flex; gap: 20px; margin-bottom: 15px; color: #ccc; font-size: 14px;">
           <span>📧 ${escapeHTML(user.email || 'No email')}</span>
           <span>🚩 Spam: ${user.spam_flags || 0}</span>
           <span>📤 Uploads: ${user.upload_count || 0}</span>
         </div>
-        <div class="gb-status ${user.is_shadow_banned ? 'banned' : 'active'}">
+        <div style="margin-bottom: 15px; padding: 8px 12px; background: ${user.is_shadow_banned ? '#2a1a1a' : '#1a2a1a'}; border-radius: 5px; color: ${user.is_shadow_banned ? '#ff8888' : '#00ff88'};">
           ${user.is_shadow_banned ? '🔇 Shadow Banned' : '✅ Active'}
         </div>
-        <div class="gb-card-actions">
+        <div style="display: flex; gap: 10px;">
           ${!user.is_shadow_banned ? 
             `<button onclick="shadowBanUser('${user.id}')" class="gb-btn gb-btn-warning">🔇 Shadow Ban</button>` : 
             `<button onclick="removeShadowBan('${user.id}')" class="gb-btn gb-btn-primary">✓ Remove Ban</button>`
@@ -1491,18 +1878,18 @@ async function loadQuarantineMods() {
     }
     
     box.innerHTML = data.map(mod => `
-      <div class="gb-card quarantined">
-        <div class="gb-card-header">
-          <h3>${escapeHTML(mod.title)}</h3>
+      <div class="gb-card" style="border-left: 4px solid #ffaa00;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+          <h3 style="margin: 0; color: #fff;">${escapeHTML(mod.title)}</h3>
           <span class="gb-badge" style="background:#ffaa00;">☣️ Quarantined</span>
         </div>
-        <div class="gb-card-meta">
+        <div style="display: flex; gap: 20px; margin-bottom: 15px; color: #ccc; font-size: 14px;">
           <span>👤 ${escapeHTML(mod.author_name || 'Unknown')}</span>
           <span>📥 ${mod.download_count || 0}</span>
           <span>📅 ${new Date(mod.created_at).toLocaleDateString()}</span>
         </div>
-        <p class="gb-scan-reason">${escapeHTML(mod.scan_reason || 'Quarantined by admin')}</p>
-        <div class="gb-card-actions">
+        <p style="color: #ffaa00; margin-bottom: 15px;">${escapeHTML(mod.scan_reason || 'Quarantined by admin')}</p>
+        <div style="display: flex; gap: 10px;">
           <button onclick="approveMod('${mod.id}')" class="gb-btn gb-btn-primary">✅ Release</button>
           <button onclick="deleteMod('${mod.id}')" class="gb-btn gb-btn-danger">🗑️ Delete</button>
         </div>
@@ -1549,28 +1936,45 @@ async function loadPendingMods() {
     
     box.innerHTML = data.map(mod => `
       <div class="gb-card review">
-        <div class="gb-card-header">
-          <h3>${escapeHTML(mod.title)}</h3>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+          <h3 style="margin: 0; color: #00ff88;">${escapeHTML(mod.title)}</h3>
           <span class="gb-badge">v${escapeHTML(mod.version || '1.0.0')}</span>
         </div>
-        <div class="gb-card-meta">
-          <span>👤 ${escapeHTML(mod.author_name || 'Unknown')}</span>
-          <span>🎮 ${escapeHTML(mod.baldi_version || 'Any')}</span>
-          <span>💾 ${formatFileSize(mod.file_size || 0)}</span>
-          <span>📅 ${new Date(mod.created_at).toLocaleDateString()}</span>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 15px; padding: 15px; background: #1a1a1a; border-radius: 8px;">
+          <div>
+            <strong style="display: block; color: #fff; margin-bottom: 5px;">Author</strong>
+            <span style="color: #ccc;">${escapeHTML(mod.author_name || 'Unknown')}</span>
+          </div>
+          <div>
+            <strong style="display: block; color: #fff; margin-bottom: 5px;">Baldi Version</strong>
+            <span style="color: #ccc;">${escapeHTML(mod.baldi_version || 'Any')}</span>
+          </div>
+          <div>
+            <strong style="display: block; color: #fff; margin-bottom: 5px;">Size</strong>
+            <span style="color: #ccc;">${formatFileSize(mod.file_size || 0)}</span>
+          </div>
+          <div>
+            <strong style="display: block; color: #fff; margin-bottom: 5px;">Uploaded</strong>
+            <span style="color: #ccc;">${new Date(mod.created_at).toLocaleDateString()}</span>
+          </div>
         </div>
-        <div class="gb-risk-score">
+        <div style="margin-bottom: 15px;">
           <span>Risk Score: </span>
           <span class="gb-badge" style="background:${mod.risk_score > 50 ? '#ff4444' : mod.risk_score > 20 ? '#ffaa00' : '#00ff88'};">
             ${mod.risk_score || 0}/100
           </span>
         </div>
-        <p class="gb-description">${escapeHTML(mod.description.substring(0, 200))}${mod.description.length > 200 ? '...' : ''}</p>
-        ${mod.scan_reason ? `<p class="gb-scan-note">🔍 ${escapeHTML(mod.scan_reason)}</p>` : ''}
-        <div class="gb-tags">
-          ${mod.tags?.map(tag => `<span class="gb-tag">#${escapeHTML(tag)}</span>`).join('') || ''}
+        <div style="margin-bottom: 15px; padding: 15px; background: #1a1a1a; border-radius: 8px;">
+          <strong style="display: block; color: #fff; margin-bottom: 10px;">Description</strong>
+          <p style="color: #ccc; margin: 0; line-height: 1.6;">${escapeHTML(mod.description.substring(0, 300))}${mod.description.length > 300 ? '...' : ''}</p>
         </div>
-        <div class="gb-card-actions">
+        ${mod.scan_reason ? `
+          <div style="margin-bottom: 15px; padding: 15px; background: #332200; border-left: 4px solid #ffaa00; border-radius: 4px;">
+            <strong style="display: block; color: #ffaa00; margin-bottom: 10px;">🔍 Scan Notes</strong>
+            <p style="color: #fff; margin: 0;">${escapeHTML(mod.scan_reason)}</p>
+          </div>
+        ` : ''}
+        <div style="display: flex; gap: 10px; margin-top: 20px;">
           <button onclick="approveMod('${mod.id}')" class="gb-btn gb-btn-primary">✅ Approve</button>
           <button onclick="rejectMod('${mod.id}')" class="gb-btn gb-btn-danger">❌ Reject</button>
           <button onclick="quarantineMod('${mod.id}')" class="gb-btn gb-btn-warning">⚠️ Quarantine</button>
@@ -1611,18 +2015,18 @@ async function loadReportedMods() {
     }
     
     box.innerHTML = data.map(mod => `
-      <div class="gb-card reported">
-        <div class="gb-card-header">
-          <h3>${escapeHTML(mod.title)}</h3>
+      <div class="gb-card" style="border-left: 4px solid #ff4444;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+          <h3 style="margin: 0; color: #fff;">${escapeHTML(mod.title)}</h3>
           <span class="gb-badge" style="background:#ff4444;">🚩 Reported</span>
         </div>
-        <div class="gb-card-meta">
+        <div style="display: flex; gap: 20px; margin-bottom: 15px; color: #ccc; font-size: 14px;">
           <span>👤 ${escapeHTML(mod.author_name || 'Unknown')}</span>
           <span>📥 ${mod.download_count || 0}</span>
           <span>📅 ${new Date(mod.reported_at || mod.created_at).toLocaleDateString()}</span>
         </div>
-        <p class="gb-scan-reason">${escapeHTML(mod.scan_reason || 'User reported')}</p>
-        <div class="gb-card-actions">
+        <p style="color: #ffaa00; margin-bottom: 15px;">${escapeHTML(mod.scan_reason || 'User reported')}</p>
+        <div style="display: flex; gap: 10px;">
           <button onclick="quarantineMod('${mod.id}')" class="gb-btn gb-btn-warning">⚠️ Quarantine</button>
           <button onclick="deleteMod('${mod.id}')" class="gb-btn gb-btn-danger">🗑️ Delete</button>
           <button onclick="clearReport('${mod.id}')" class="gb-btn gb-btn-secondary">✓ Clear</button>

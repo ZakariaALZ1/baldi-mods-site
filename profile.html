@@ -674,391 +674,390 @@
   </main>
 
   <script src="script.js"></script>
-  <script>
-    // ============================================
-    // SECURITY: AUTH GUARD - Redirect if not logged in
-    // ============================================
-    (async function() {
-      try {
-        // Wait for supabase to be initialized
-        const waitForSupabase = async (maxAttempts = 30) => {
-          for (let i = 0; i < maxAttempts; i++) {
-            if (typeof window.supabaseClient !== 'undefined') {
-              return true;
-            }
-            await new Promise(resolve => setTimeout(resolve, 100));
+<script>
+  // ============================================
+  // SECURITY: AUTH GUARD - Redirect if not logged in
+  // ============================================
+  (async function() {
+    try {
+      // Wait for supabase to be initialized
+      const waitForSupabase = async (maxAttempts = 30) => {
+        for (let i = 0; i < maxAttempts; i++) {
+          if (typeof window.supabaseClient !== 'undefined') {
+            return true;
           }
-          return false;
-        };
-
-        await waitForSupabase();
-
-        // Get current user
-        const { data: { user }, error } = await window.supabaseClient.auth.getUser();
-        
-        // If not logged in, redirect to index.html IMMEDIATELY
-        if (error || !user) {
-          console.log('No user detected - redirecting to login');
-          window.location.href = 'index.html?redirect=profile';
-          return;
+          await new Promise(resolve => setTimeout(resolve, 100));
         }
+        return false;
+      };
 
-        // User is logged in, hide loading and show profile
-        document.getElementById('profile-loading').style.display = 'none';
-        document.getElementById('profile-content').style.display = 'block';
-        
-        // Load profile data
-        if (typeof loadProfilePage === 'function') {
-          loadProfilePage();
-        } else {
-          console.error('loadProfilePage function not found');
-          // Fallback profile render
-          renderFallbackProfile(user);
-        }
+      await waitForSupabase();
 
-        // Load user's mods
-        if (typeof loadMyMods === 'function') {
-          loadMyMods();
-        }
+      // Get current user
+      const { data: { user }, error } = await window.supabaseClient.auth.getUser();
 
-        // Update navigation
-        if (typeof checkAuthState === 'function') {
-          checkAuthState();
-        }
-
-      } catch (err) {
-        console.error('Profile guard error:', err);
-        window.location.href = 'index.html?error=profile_guard';
+      // If not logged in, redirect to index.html IMMEDIATELY
+      if (error || !user) {
+        console.log('No user detected - redirecting to login');
+        window.location.href = 'index.html?redirect=profile';
+        return;
       }
-    })();
 
-    // ============================================
-    // FALLBACK: Render profile if script.js functions missing
-    // ============================================
-    async function renderFallbackProfile(user) {
-      try {
-        // Get or create profile
-        let { data: profile } = await window.supabaseClient
+      // User is logged in, hide loading and show profile
+      document.getElementById('profile-loading').style.display = 'none';
+      document.getElementById('profile-content').style.display = 'block';
+
+      // Load profile data
+      if (typeof loadProfilePage === 'function') {
+        loadProfilePage();
+      } else {
+        console.error('loadProfilePage function not found');
+        // Fallback profile render
+        renderFallbackProfile(user);
+      }
+
+      // Load user's mods
+      if (typeof loadMyMods === 'function') {
+        loadMyMods();
+      }
+
+      // Update navigation
+      if (typeof checkAuthState === 'function') {
+        checkAuthState();
+      }
+    } catch (err) {
+      console.error('Profile guard error:', err);
+      window.location.href = 'index.html?error=profile_guard';
+    }
+  })();
+
+  // ============================================
+  // FALLBACK: Render profile if script.js functions missing
+  // ============================================
+  async function renderFallbackProfile(user) {
+    try {
+      // Get or create profile
+      let { data: profile } = await window.supabaseClient
+        .from('profiles')
+        .select('*')
+        .eq('id', user.id)
+        .single();
+
+      if (!profile) {
+        const { data: newProfile } = await window.supabaseClient
           .from('profiles')
-          .select('*')
-          .eq('id', user.id)
+          .insert({
+            id: user.id,
+            username: user.email.split('@')[0],
+            email: user.email,
+            role: 'user',
+            trust_score: 100,
+            is_verified: false,
+            join_date: new Date().toISOString(),
+            upload_count: 0,
+            download_count: 0
+          })
+          .select()
           .single();
-
-        if (!profile) {
-          const { data: newProfile } = await window.supabaseClient
-            .from('profiles')
-            .insert({
-              id: user.id,
-              username: user.email.split('@')[0],
-              email: user.email,
-              role: 'user',
-              trust_score: 100,
-              is_verified: false,
-              join_date: new Date().toISOString(),
-              upload_count: 0,
-              download_count: 0
-            })
-            .select()
-            .single();
-          profile = newProfile;
-        }
-
-        renderGameBananaProfile(profile, user);
-      } catch (err) {
-        console.error('Failed to load profile:', err);
-        document.getElementById('profile-content').innerHTML = `
-          <div class="gb-error">
-            <h2>❌ Failed to Load Profile</h2>
-            <p>Please try refreshing the page.</p>
-            <a href="index.html" class="gb-btn gb-btn-primary" style="display: inline-block; text-decoration: none;">← Back to Home</a>
-          </div>
-        `;
+        profile = newProfile;
       }
+
+      renderGameBananaProfile(profile, user);
+    } catch (err) {
+      console.error('Failed to load profile:', err);
+      document.getElementById('profile-content').innerHTML = `
+        <div class="gb-error">
+          <h2>❌ Failed to Load Profile</h2>
+          <p>Please try refreshing the page.</p>
+          <a href="index.html" class="gb-btn gb-btn-primary" style="display: inline-block; text-decoration: none;">← Back to Home</a>
+        </div>
+      `;
+    }
+  }
+
+  // ============================================
+  // GAMEBANANA PROFILE RENDER
+  // ============================================
+  function renderGameBananaProfile(profile, user) {
+    const container = document.getElementById('profile-content');
+    const username = profile?.username || user.email?.split('@')[0] || 'User';
+    const joinDate = profile?.join_date ? new Date(profile.join_date).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    }) : 'Today';
+    const trustScore = profile?.trust_score || 100;
+
+    let trustColor = '#ff4444';
+    if (trustScore >= 80) trustColor = '#00ff88';
+    else if (trustScore >= 50) trustColor = '#ffaa00';
+
+    let roleBadge = '';
+    if (profile?.role === 'admin') {
+      roleBadge = '<span class="gb-profile-badge admin">👑 ADMINISTRATOR</span>';
+    } else if (profile?.role === 'moderator') {
+      roleBadge = '<span class="gb-profile-badge moderator">🛡️ MODERATOR</span>';
+    } else if (profile?.is_verified) {
+      roleBadge = '<span class="gb-profile-badge verified">✅ VERIFIED</span>';
+    } else {
+      roleBadge = '<span class="gb-profile-badge">👤 MEMBER</span>';
     }
 
-    // ============================================
-    // GAMEBANANA PROFILE RENDER
-    // ============================================
-    function renderGameBananaProfile(profile, user) {
-      const container = document.getElementById('profile-content');
-      const username = profile?.username || user.email?.split('@')[0] || 'User';
-      const joinDate = profile?.join_date ? new Date(profile.join_date).toLocaleDateString('en-US', { 
-        year: 'numeric', 
-        month: 'long', 
-        day: 'numeric' 
-      }) : 'Today';
-      const trustScore = profile?.trust_score || 100;
-      
-      let trustColor = '#ff4444';
-      if (trustScore >= 80) trustColor = '#00ff88';
-      else if (trustScore >= 50) trustColor = '#ffaa00';
-      
-      let roleBadge = '';
-      if (profile?.role === 'admin') {
-        roleBadge = '<span class="gb-profile-badge admin">👑 ADMINISTRATOR</span>';
-      } else if (profile?.role === 'moderator') {
-        roleBadge = '<span class="gb-profile-badge moderator">🛡️ MODERATOR</span>';
-      } else if (profile?.is_verified) {
-        roleBadge = '<span class="gb-profile-badge verified">✅ VERIFIED</span>';
-      } else {
-        roleBadge = '<span class="gb-profile-badge">👤 MEMBER</span>';
-      }
-      
-      container.innerHTML = `
-        <div class="gb-profile-grid">
-          <!-- Sidebar -->
-          <div class="gb-profile-sidebar">
-            <div class="gb-profile-cover"></div>
-            <div class="gb-profile-avatar">
-              ${username.charAt(0).toUpperCase()}
-            </div>
-            <div class="gb-profile-info">
-              <h2 class="gb-profile-name">${escapeHTML(username)}</h2>
-              ${roleBadge}
-              
-              <div class="gb-profile-stats">
-                <div class="gb-stat">
-                  <span class="gb-stat-value">${profile?.upload_count || 0}</span>
-                  <span class="gb-stat-label">Uploads</span>
-                </div>
-                <div class="gb-stat">
-                  <span class="gb-stat-value">${profile?.download_count || 0}</span>
-                  <span class="gb-stat-label">Downloads</span>
-                </div>
-                <div class="gb-stat">
-                  <span class="gb-stat-value">⭐</span>
-                  <span class="gb-stat-label">${trustScore}</span>
-                </div>
-              </div>
-              
-              <div class="gb-trust-score">
-                <div class="gb-trust-header">
-                  <span>Trust Score</span>
-                  <span style="color: ${trustColor};">${trustScore}%</span>
-                </div>
-                <div class="gb-trust-bar">
-                  <div class="gb-trust-fill" style="width: ${trustScore}%; background: ${trustColor};"></div>
-                </div>
-              </div>
-              
-              <div class="gb-profile-bio">
-                <h3>About</h3>
-                <p>${escapeHTML(profile?.bio || 'No bio yet. Click settings to add one!')}</p>
-              </div>
-              
-              <div class="gb-profile-actions">
-                <button onclick="logout()" class="gb-btn gb-btn-danger">
-                  🚪 Sign Out
-                </button>
-              </div>
-            </div>
+    container.innerHTML = `
+      <div class="gb-profile-grid">
+        <!-- Sidebar -->
+        <div class="gb-profile-sidebar">
+          <div class="gb-profile-cover"></div>
+          <div class="gb-profile-avatar">
+            ${username.charAt(0).toUpperCase()}
           </div>
-          
-          <!-- Main Content -->
-          <div class="gb-profile-main">
-            <div class="gb-tabs">
-              <button class="gb-tab active" onclick="window.switchTab('uploads')">
-                📦 My Mods
-              </button>
-              <button class="gb-tab" onclick="window.switchTab('stats')">
-                📊 Statistics
-              </button>
-              <button class="gb-tab" onclick="window.switchTab('settings')">
-                ⚙️ Settings
-              </button>
-            </div>
-            
-            <!-- Uploads Tab -->
-            <div id="uploads-tab" class="gb-tab-content active">
-              <h3 style="color: var(--gb-primary); margin-bottom: 20px;">My Uploaded Mods</h3>
-              <div id="myMods" class="gb-mod-grid">
-                <div class="gb-loading" style="padding: 40px;">
-                  <div class="gb-loading-spinner" style="width: 30px; height: 30px;"></div>
-                  <p>Loading your mods...</p>
-                </div>
+          <div class="gb-profile-info">
+            <h2 class="gb-profile-name">${escapeHTML(username)}</h2>
+            ${roleBadge}
+
+            <div class="gb-profile-stats">
+              <div class="gb-stat">
+                <span class="gb-stat-value">${profile?.upload_count || 0}</span>
+                <span class="gb-stat-label">Uploads</span>
+              </div>
+              <div class="gb-stat">
+                <span class="gb-stat-value">${profile?.download_count || 0}</span>
+                <span class="gb-stat-label">Downloads</span>
+              </div>
+              <div class="gb-stat">
+                <span class="gb-stat-value">⭐</span>
+                <span class="gb-stat-label">${trustScore}</span>
               </div>
             </div>
-            
-            <!-- Stats Tab -->
-            <div id="stats-tab" class="gb-tab-content">
-              <h3 style="color: var(--gb-primary); margin-bottom: 20px;">Your Statistics</h3>
-              <div class="gb-stats-grid">
-                <div class="gb-stat-card">
-                  <div class="gb-stat-icon">📤</div>
-                  <div class="gb-stat-info">
-                    <h4>Total Uploads</h4>
-                    <span class="gb-stat-number" id="statTotalUploads">0</span>
-                  </div>
-                </div>
-                <div class="gb-stat-card">
-                  <div class="gb-stat-icon">✅</div>
-                  <div class="gb-stat-info">
-                    <h4>Approved</h4>
-                    <span class="gb-stat-number" id="statApprovedMods">0</span>
-                  </div>
-                </div>
-                <div class="gb-stat-card">
-                  <div class="gb-stat-icon">⏳</div>
-                  <div class="gb-stat-info">
-                    <h4>Pending</h4>
-                    <span class="gb-stat-number" id="statPendingMods">0</span>
-                  </div>
-                </div>
-                <div class="gb-stat-card">
-                  <div class="gb-stat-icon">📥</div>
-                  <div class="gb-stat-info">
-                    <h4>Downloads</h4>
-                    <span class="gb-stat-number" id="statTotalDownloads">0</span>
-                  </div>
-                </div>
+
+            <div class="gb-trust-score">
+              <div class="gb-trust-header">
+                <span>Trust Score</span>
+                <span style="color: ${trustColor};">${trustScore}%</span>
+              </div>
+              <div class="gb-trust-bar">
+                <div class="gb-trust-fill" style="width: ${trustScore}%; background: ${trustColor};"></div>
               </div>
             </div>
-            
-            <!-- Settings Tab -->
-            <div id="settings-tab" class="gb-tab-content">
-              <h3 style="color: var(--gb-primary); margin-bottom: 20px;">Profile Settings</h3>
-              <form class="gb-settings-form" onsubmit="event.preventDefault(); updateProfile();">
-                <div class="gb-form-group">
-                  <label for="displayName">Display Name</label>
-                  <input 
-                    type="text" 
-                    id="displayName" 
-                    value="${escapeHTML(username)}" 
-                    maxlength="30"
-                    placeholder="Enter your display name"
-                  >
-                  <span class="gb-char-counter" id="nameCounter">${username.length}/30</span>
-                </div>
-                
-                <div class="gb-form-group">
-                  <label for="userBio">Bio</label>
-                  <textarea 
-                    id="userBio" 
-                    rows="4" 
-                    maxlength="500" 
-                    placeholder="Tell the community about yourself..."
-                  >${escapeHTML(profile?.bio || '')}</textarea>
-                  <span class="gb-char-counter" id="bioCounter">${profile?.bio?.length || 0}/500</span>
-                </div>
-                
-                <div class="gb-form-group">
-                  <label for="email">Email Address</label>
-                  <input 
-                    type="email" 
-                    id="email" 
-                    value="${escapeHTML(user.email)}" 
-                    disabled
-                    style="background: rgba(0,0,0,0.5); opacity: 0.7;"
-                  >
-                  <span class="gb-char-counter">Cannot be changed</span>
-                </div>
-                
-                <button type="submit" class="gb-btn gb-btn-primary" style="width: 100%;">
-                  💾 Save Changes
-                </button>
-              </form>
+
+            <div class="gb-profile-bio">
+              <h3>About</h3>
+              <p>${escapeHTML(profile?.bio || 'No bio yet. Click settings to add one!')}</p>
+            </div>
+
+            <div class="gb-profile-actions">
+              <button onclick="logout()" class="gb-btn gb-btn-danger">
+                🚪 Sign Out
+              </button>
             </div>
           </div>
         </div>
-      `;
-      
-      // Load stats
-      loadUserStatsFallback();
+
+        <!-- Main Content -->
+        <div class="gb-profile-main">
+          <div class="gb-tabs">
+            <button class="gb-tab active" onclick="window.switchTab('uploads')">
+              📦 My Mods
+            </button>
+            <button class="gb-tab" onclick="window.switchTab('stats')">
+              📊 Statistics
+            </button>
+            <button class="gb-tab" onclick="window.switchTab('settings')">
+              ⚙️ Settings
+            </button>
+          </div>
+
+          <!-- Uploads Tab -->
+          <div id="uploads-tab" class="gb-tab-content active">
+            <h3 style="color: var(--gb-primary); margin-bottom: 20px;">My Uploaded Mods</h3>
+            <div id="myMods" class="gb-mod-grid">
+              <div class="gb-loading" style="padding: 40px;">
+                <div class="gb-loading-spinner" style="width: 30px; height: 30px;"></div>
+                <p>Loading your mods...</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Stats Tab -->
+          <div id="stats-tab" class="gb-tab-content">
+            <h3 style="color: var(--gb-primary); margin-bottom: 20px;">Your Statistics</h3>
+            <div class="gb-stats-grid">
+              <div class="gb-stat-card">
+                <div class="gb-stat-icon">📤</div>
+                <div class="gb-stat-info">
+                  <h4>Total Uploads</h4>
+                  <span class="gb-stat-number" id="statTotalUploads">0</span>
+                </div>
+              </div>
+              <div class="gb-stat-card">
+                <div class="gb-stat-icon">✅</div>
+                <div class="gb-stat-info">
+                  <h4>Approved</h4>
+                  <span class="gb-stat-number" id="statApprovedMods">0</span>
+                </div>
+              </div>
+              <div class="gb-stat-card">
+                <div class="gb-stat-icon">⏳</div>
+                <div class="gb-stat-info">
+                  <h4>Pending</h4>
+                  <span class="gb-stat-number" id="statPendingMods">0</span>
+                </div>
+              </div>
+              <div class="gb-stat-card">
+                <div class="gb-stat-icon">📥</div>
+                <div class="gb-stat-info">
+                  <h4>Downloads</h4>
+                  <span class="gb-stat-number" id="statTotalDownloads">0</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Settings Tab -->
+          <div id="settings-tab" class="gb-tab-content">
+            <h3 style="color: var(--gb-primary); margin-bottom: 20px;">Profile Settings</h3>
+            <form class="gb-settings-form" onsubmit="event.preventDefault(); updateProfile();">
+              <div class="gb-form-group">
+                <label for="displayName">Display Name</label>
+                <input
+                  type="text"
+                  id="displayName"
+                  value="${escapeHTML(username)}"
+                  maxlength="30"
+                  placeholder="Enter your display name"
+                >
+                <span class="gb-char-counter" id="nameCounter">${username.length}/30</span>
+              </div>
+
+              <div class="gb-form-group">
+                <label for="userBio">Bio</label>
+                <textarea
+                  id="userBio"
+                  rows="4"
+                  maxlength="500"
+                  placeholder="Tell the community about yourself..."
+                >${escapeHTML(profile?.bio || '')}</textarea>
+                <span class="gb-char-counter" id="bioCounter">${profile?.bio?.length || 0}/500</span>
+              </div>
+
+              <div class="gb-form-group">
+                <label for="email">Email Address</label>
+                <input
+                  type="email"
+                  id="email"
+                  value="${escapeHTML(user.email)}"
+                  disabled
+                  style="background: rgba(0,0,0,0.5); opacity: 0.7;"
+                >
+                <span class="gb-char-counter">Cannot be changed</span>
+              </div>
+
+              <button type="submit" class="gb-btn gb-btn-primary" style="width: 100%;">
+                💾 Save Changes
+              </button>
+            </form>
+          </div>
+        </div>
+      </div>
+    `;
+
+    // Load stats
+    loadUserStatsFallback();
+  }
+
+  // ============================================
+  // FALLBACK FUNCTIONS
+  // ============================================
+  async function loadUserStatsFallback() {
+    const user = await getCurrentUserFallback();
+    if (!user) return;
+
+    try {
+      const { data: mods } = await window.supabaseClient
+        .from('mods2')
+        .select('*')
+        .eq('user_id', user.id);
+
+      const totalUploads = mods?.length || 0;
+      const approvedMods = mods?.filter(m => m.approved).length || 0;
+      const pendingMods = mods?.filter(m => !m.approved && !m.quarantine).length || 0;
+      const totalDownloads = mods?.reduce((sum, m) => sum + (m.download_count || 0), 0) || 0;
+
+      document.getElementById('statTotalUploads').textContent = totalUploads;
+      document.getElementById('statApprovedMods').textContent = approvedMods;
+      document.getElementById('statPendingMods').textContent = pendingMods;
+      document.getElementById('statTotalDownloads').textContent = totalDownloads;
+    } catch (err) {
+      console.error('Failed to load stats:', err);
     }
+  }
 
-    // ============================================
-    // FALLBACK FUNCTIONS
-    // ============================================
-    async function loadUserStatsFallback() {
-      const user = await getCurrentUserFallback();
-      if (!user) return;
-
-      try {
-        const { data: mods } = await window.supabaseClient
-          .from('mods2')
-          .select('*')
-          .eq('user_id', user.id);
-
-        const totalUploads = mods?.length || 0;
-        const approvedMods = mods?.filter(m => m.approved).length || 0;
-        const pendingMods = mods?.filter(m => !m.approved && !m.quarantine).length || 0;
-        const totalDownloads = mods?.reduce((sum, m) => sum + (m.download_count || 0), 0) || 0;
-
-        document.getElementById('statTotalUploads').textContent = totalUploads;
-        document.getElementById('statApprovedMods').textContent = approvedMods;
-        document.getElementById('statPendingMods').textContent = pendingMods;
-        document.getElementById('statTotalDownloads').textContent = totalDownloads;
-      } catch (err) {
-        console.error('Failed to load stats:', err);
-      }
+  async function getCurrentUserFallback() {
+    try {
+      const { data: { user } } = await window.supabaseClient.auth.getUser();
+      return user;
+    } catch {
+      return null;
     }
+  }
 
-    async function getCurrentUserFallback() {
-      try {
-        const { data: { user } } = await window.supabaseClient.auth.getUser();
-        return user;
-      } catch {
-        return null;
-      }
-    }
+  // ============================================
+  // UTILITIES
+  // ============================================
+  function escapeHTML(str) {
+    if (!str) return '';
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+  }
 
-    // ============================================
-    // UTILITIES
-    // ============================================
-    function escapeHTML(str) {
-      if (!str) return '';
-      const div = document.createElement('div');
-      div.textContent = str;
-      return div.innerHTML;
-    }
-
-    // ============================================
-    // TAB SWITCHING
-    // ============================================
-    window.switchTab = function(tabName) {
-      document.querySelectorAll('.gb-tab-content').forEach(tab => {
-        tab.classList.remove('active');
-      });
-      document.querySelectorAll('.gb-tab').forEach(btn => {
-        btn.classList.remove('active');
-      });
-      
-      const tabEl = document.getElementById(`${tabName}-tab`);
-      if (tabEl) tabEl.classList.add('active');
-      if (event.target) event.target.classList.add('active');
-      
-      if (tabName === 'stats') {
-        if (typeof loadUserStats === 'function') {
-          loadUserStats();
-        } else {
-          loadUserStatsFallback();
-        }
-      }
-    };
-
-    // ============================================
-    // CHARACTER COUNTERS
-    // ============================================
-    document.addEventListener('DOMContentLoaded', function() {
-      setTimeout(() => {
-        const displayName = document.getElementById('displayName');
-        const userBio = document.getElementById('userBio');
-        
-        if (displayName) {
-          displayName.addEventListener('input', function() {
-            const counter = document.getElementById('nameCounter');
-            if (counter) counter.textContent = `${this.value.length}/30`;
-          });
-        }
-        
-        if (userBio) {
-          userBio.addEventListener('input', function() {
-            const counter = document.getElementById('bioCounter');
-            if (counter) counter.textContent = `${this.value.length}/500`;
-          });
-        }
-      }, 500);
+  // ============================================
+  // TAB SWITCHING
+  // ============================================
+  window.switchTab = function(tabName) {
+    document.querySelectorAll('.gb-tab-content').forEach(tab => {
+      tab.classList.remove('active');
     });
-  </script>
+    document.querySelectorAll('.gb-tab').forEach(btn => {
+      btn.classList.remove('active');
+    });
+
+    const tabEl = document.getElementById(`${tabName}-tab`);
+    if (tabEl) tabEl.classList.add('active');
+    if (event.target) event.target.classList.add('active');
+
+    if (tabName === 'stats') {
+      if (typeof loadUserStats === 'function') {
+        loadUserStats();
+      } else {
+        loadUserStatsFallback();
+      }
+    }
+  };
+
+  // ============================================
+  // CHARACTER COUNTERS
+  // ============================================
+  document.addEventListener('DOMContentLoaded', function() {
+    setTimeout(() => {
+      const displayName = document.getElementById('displayName');
+      const userBio = document.getElementById('userBio');
+
+      if (displayName) {
+        displayName.addEventListener('input', function() {
+          const counter = document.getElementById('nameCounter');
+          if (counter) counter.textContent = `${this.value.length}/30`;
+        });
+      }
+
+      if (userBio) {
+        userBio.addEventListener('input', function() {
+          const counter = document.getElementById('bioCounter');
+          if (counter) counter.textContent = `${this.value.length}/500`;
+        });
+      }
+    }, 500);
+  });
+</script>
 </body>
 </html>

@@ -733,146 +733,145 @@
     </div>
   </main>
 
-  <script src="script.js"></script>
-  <script>
-    // ============================================
-    // SECURITY: AUTH GUARD - Redirect if not logged in
-    // ============================================
-    (async function() {
-      try {
-        // Wait for supabase to be initialized
-        const waitForSupabase = async (maxAttempts = 30) => {
-          for (let i = 0; i < maxAttempts; i++) {
-            if (typeof window.supabaseClient !== 'undefined') {
-              return true;
-            }
-            await new Promise(resolve => setTimeout(resolve, 100));
+ <script src="script.js"></script>
+<script>
+  // ============================================
+  // SECURITY: AUTH GUARD - Redirect if not logged in
+  // ============================================
+  (async function() {
+    try {
+      // Wait for supabase to be initialized
+      const waitForSupabase = async (maxAttempts = 30) => {
+        for (let i = 0; i < maxAttempts; i++) {
+          if (typeof window.supabaseClient !== 'undefined') {
+            return true;
           }
-          return false;
-        };
-
-        await waitForSupabase();
-
-        // Get current user
-        const { data: { user }, error } = await window.supabaseClient.auth.getUser();
-        
-        // If not logged in, redirect to index.html IMMEDIATELY
-        if (error || !user) {
-          console.log('No user detected - redirecting to login');
-          window.location.href = 'index.html?redirect=upload';
-          return;
+          await new Promise(resolve => setTimeout(resolve, 100));
         }
+        return false;
+      };
 
-        // Check if user is shadow banned
-        const { data: profile } = await window.supabaseClient
-          .from('profiles')
-          .select('is_shadow_banned')
-          .eq('id', user.id)
-          .single();
+      await waitForSupabase();
 
-        if (profile?.is_shadow_banned) {
-          window.location.href = 'index.html?error=banned';
-          return;
-        }
+      // Get current user
+      const { data: { user }, error } = await window.supabaseClient.auth.getUser();
 
-        // User is logged in, show upload form
-        document.getElementById('upload-content').style.display = 'block';
-
-        // Update navigation
-        if (typeof checkAuthState === 'function') {
-          checkAuthState();
-        }
-
-      } catch (err) {
-        console.error('Upload guard error:', err);
-        window.location.href = 'index.html?error=upload_guard';
+      // If not logged in, redirect to index.html IMMEDIATELY
+      if (error || !user) {
+        console.log('No user detected - redirecting to login');
+        window.location.href = 'index.html?redirect=upload';
+        return;
       }
-    })();
 
-    // ============================================
-    // CHARACTER COUNTERS
-    // ============================================
-    document.addEventListener('DOMContentLoaded', function() {
-      // Title counter
-      const titleInput = document.getElementById('title');
-      if (titleInput) {
-        titleInput.addEventListener('input', function() {
-          const counter = document.getElementById('titleCounter');
-          if (counter) counter.textContent = `${this.value.length}/100`;
-        });
-      }
-      
-      // Description counter
-      const descInput = document.getElementById('description');
-      if (descInput) {
-        descInput.addEventListener('input', function() {
-          const counter = document.getElementById('descCounter');
-          if (counter) counter.textContent = `${this.value.length}/5000`;
-        });
-      }
-      
-      // File info display
-      const fileInput = document.getElementById('file');
-      if (fileInput) {
-        fileInput.addEventListener('change', function() {
-          const fileInfo = document.getElementById('fileInfo');
-          if (this.files[0]) {
-            const file = this.files[0];
-            const sizeInGB = (file.size / 1073741824).toFixed(2);
-            const sizeInMB = (file.size / 1048576).toFixed(2);
-            
-            let sizeText = '';
-            if (file.size > 1073741824) {
-              sizeText = `${sizeInGB} GB`;
-            } else {
-              sizeText = `${sizeInMB} MB`;
-            }
-            
-            fileInfo.style.display = 'block';
-            fileInfo.innerHTML = `
-              <strong>Selected file:</strong> ${escapeHTML(file.name)}<br>
-              <strong>Size:</strong> ${sizeText}<br>
-              <strong>Type:</strong> ${file.type || 'Unknown'}<br>
-              <strong>Hash:</strong> Calculating...
-            `;
-            
-            // Check file size (2GB limit)
-            if (file.size > (window.ENV?.MAX_UPLOAD_SIZE || 2147483648)) {
-              fileInfo.style.borderColor = '#ff4444';
-              fileInfo.innerHTML += '<br><span style="color: #ff4444;">❌ File exceeds 2GB limit!</span>';
-              this.value = '';
-            }
-          } else {
-            fileInfo.style.display = 'none';
-          }
-        });
-      }
-      
-      // Form reset handler
-      const resetBtn = document.querySelector('button[type="reset"]');
-      if (resetBtn) {
-        resetBtn.addEventListener('click', function(e) {
-          e.preventDefault();
-          document.getElementById('uploadForm').reset();
-          document.getElementById('titleCounter').textContent = '0/100';
-          document.getElementById('descCounter').textContent = '0/5000';
-          document.getElementById('fileInfo').style.display = 'none';
-          if (typeof showNotification === 'function') {
-            showNotification('Form cleared', 'info');
-          }
-        });
-      }
-    });
+      // Check if user is shadow banned
+      const { data: profile } = await window.supabaseClient
+        .from('profiles')
+        .select('is_shadow_banned')
+        .eq('id', user.id)
+        .single();
 
-    // ============================================
-    // UTILITIES
-    // ============================================
-    function escapeHTML(str) {
-      if (!str) return '';
-      const div = document.createElement('div');
-      div.textContent = str;
-      return div.innerHTML;
+      if (profile?.is_shadow_banned) {
+        window.location.href = 'index.html?error=banned';
+        return;
+      }
+
+      // User is logged in, show upload form
+      document.getElementById('upload-content').style.display = 'block';
+
+      // Update navigation
+      if (typeof checkAuthState === 'function') {
+        checkAuthState();
+      }
+    } catch (err) {
+      console.error('Upload guard error:', err);
+      window.location.href = 'index.html?error=upload_guard';
     }
-  </script>
+  })();
+
+  // ============================================
+  // CHARACTER COUNTERS
+  // ============================================
+  document.addEventListener('DOMContentLoaded', function() {
+    // Title counter
+    const titleInput = document.getElementById('title');
+    if (titleInput) {
+      titleInput.addEventListener('input', function() {
+        const counter = document.getElementById('titleCounter');
+        if (counter) counter.textContent = `${this.value.length}/100`;
+      });
+    }
+
+    // Description counter
+    const descInput = document.getElementById('description');
+    if (descInput) {
+      descInput.addEventListener('input', function() {
+        const counter = document.getElementById('descCounter');
+        if (counter) counter.textContent = `${this.value.length}/5000`;
+      });
+    }
+
+    // File info display
+    const fileInput = document.getElementById('file');
+    if (fileInput) {
+      fileInput.addEventListener('change', function() {
+        const fileInfo = document.getElementById('fileInfo');
+        if (this.files[0]) {
+          const file = this.files[0];
+          const sizeInGB = (file.size / 1073741824).toFixed(2);
+          const sizeInMB = (file.size / 1048576).toFixed(2);
+
+          let sizeText = '';
+          if (file.size > 1073741824) {
+            sizeText = `${sizeInGB} GB`;
+          } else {
+            sizeText = `${sizeInMB} MB`;
+          }
+
+          fileInfo.style.display = 'block';
+          fileInfo.innerHTML = `
+            <strong>Selected file:</strong> ${escapeHTML(file.name)}<br>
+            <strong>Size:</strong> ${sizeText}<br>
+            <strong>Type:</strong> ${file.type || 'Unknown'}<br>
+            <strong>Hash:</strong> Calculating...
+          `;
+
+          // Check file size (2GB limit)
+          if (file.size > (window.ENV?.MAX_UPLOAD_SIZE || 2147483648)) {
+            fileInfo.style.borderColor = '#ff4444';
+            fileInfo.innerHTML += '<br><span style="color: #ff4444;">❌ File exceeds 2GB limit!</span>';
+            this.value = '';
+          }
+        } else {
+          fileInfo.style.display = 'none';
+        }
+      });
+    }
+
+    // Form reset handler
+    const resetBtn = document.querySelector('button[type="reset"]');
+    if (resetBtn) {
+      resetBtn.addEventListener('click', function(e) {
+        e.preventDefault();
+        document.getElementById('uploadForm').reset();
+        document.getElementById('titleCounter').textContent = '0/100';
+        document.getElementById('descCounter').textContent = '0/5000';
+        document.getElementById('fileInfo').style.display = 'none';
+        if (typeof showNotification === 'function') {
+          showNotification('Form cleared', 'info');
+        }
+      });
+    }
+  });
+
+  // ============================================
+  // UTILITIES
+  // ============================================
+  function escapeHTML(str) {
+    if (!str) return '';
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+  }
+</script>
 </body>
 </html>

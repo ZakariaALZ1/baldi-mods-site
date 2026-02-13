@@ -10,7 +10,19 @@ interface ScanResult {
   threats?: string[];
 }
 
+// CORS headers for all responses
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+};
+
 serve(async (req: Request) => {
+  // Handle preflight OPTIONS request
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { headers: corsHeaders });
+  }
+
   try {
     // Parse multipart form data
     const formData = await req.formData();
@@ -21,7 +33,7 @@ serve(async (req: Request) => {
     if (!file) {
       return new Response(
         JSON.stringify({ safe: false, reason: "No file provided" }),
-        { status: 400, headers: { "Content-Type": "application/json" } }
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
@@ -123,11 +135,8 @@ serve(async (req: Request) => {
       }
     }
 
-    // 6. Check file size
-    if (file.size > 100 * 1024 * 1024) {
-      threats.push("File exceeds 100MB limit");
-      riskScore += 20;
-    }
+    // 6. Check file size (now 2GB limit – optional, can be handled client-side)
+    // if (file.size > 100 * 1024 * 1024) { ... } // optional
 
     // ========== RISK ASSESSMENT ==========
     const zeroTrustScore = Math.max(0, 100 - riskScore);
@@ -140,7 +149,7 @@ serve(async (req: Request) => {
     else if (threats.some(t => t.includes("Invalid file"))) cluster = "invalid-format";
     else if (riskScore > 50) cluster = "suspicious";
 
-    // Store threat signature if malicious
+    // Store threat signature if malicious (optional, using service role key)
     if (!isSafe) {
       const supabase = createClient(
         Deno.env.get("SUPABASE_URL")!,
@@ -170,6 +179,7 @@ serve(async (req: Request) => {
       { 
         status: 200, 
         headers: { 
+          ...corsHeaders,
           "Content-Type": "application/json",
           "Cache-Control": "no-store"
         } 
@@ -187,7 +197,10 @@ serve(async (req: Request) => {
       }),
       { 
         status: 500, 
-        headers: { "Content-Type": "application/json" } 
+        headers: { 
+          ...corsHeaders,
+          "Content-Type": "application/json" 
+        } 
       }
     );
   }

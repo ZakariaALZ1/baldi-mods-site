@@ -287,42 +287,42 @@
     <p>🔒 All moderation actions are logged for security</p>
   </footer>
 
-   <script src="script.js"></script>
-  <script>
-    // Wait for supabase to be initialized
-    (async function() {
-      const waitForSupabase = async (maxAttempts = 30) => {
-        for (let i = 0; i < maxAttempts; i++) {
-          if (typeof window.supabaseClient !== 'undefined') {
-            return true;
-          }
-          await new Promise(resolve => setTimeout(resolve, 100));
+<script src="script.js"></script>
+<script>
+  // Wait for supabase to be initialized
+  (async function() {
+    const waitForSupabase = async (maxAttempts = 30) => {
+      for (let i = 0; i < maxAttempts; i++) {
+        if (typeof window.supabaseClient !== 'undefined') {
+          return true;
         }
-        return false;
-      };
-
-      await waitForSupabase();
-      
-      const isMod = await window.isModerator?.();
-      
-      if (!isMod) {
-        if (typeof window.showNotification === 'function') {
-          window.showNotification('Access denied. Moderator privileges required.', 'error');
-        }
-        setTimeout(() => {
-          window.location.href = 'index.html';
-        }, 2000);
-        return;
+        await new Promise(resolve => setTimeout(resolve, 100));
       }
-      
-      // User is authorized, show content
-      document.getElementById('loading').style.display = 'none';
-      document.getElementById('content').style.display = 'block';
-      
-      // Load moderation data
-      if (typeof loadPendingMods === 'function') loadPendingMods();
-      if (typeof loadReportedMods === 'function') loadReportedMods();
-    })();
-  </script>
+      return false;
+    };
+
+    await waitForSupabase();
+
+    const isMod = await window.isModerator?.();
+
+    if (!isMod) {
+      if (typeof window.showNotification === 'function') {
+        window.showNotification('Access denied. Moderator privileges required.', 'error');
+      }
+      setTimeout(() => {
+        window.location.href = 'index.html';
+      }, 2000);
+      return;
+    }
+
+    // User is authorized, show content
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('content').style.display = 'block';
+
+    // Load moderation data
+    if (typeof loadPendingMods === 'function') loadPendingMods();
+    if (typeof loadReportedMods === 'function') loadReportedMods();
+  })();
+</script>
 </body>
 </html>

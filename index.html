@@ -951,45 +951,37 @@
     </div>
   </footer>
 
-  <!-- Main Script - ONLY ONCE! -->
-  <script src="script.js"></script>
-  
-  <script>
-    // ============================================
-    // Simple wait for Supabase
-    // ============================================
-    async function waitForSupabase(maxAttempts = 30) {
-      for (let i = 0; i < maxAttempts; i++) {
-        // Check for the Supabase client that script.js creates
-        if (typeof window.supabaseClient !== 'undefined' && 
-            typeof window.supabaseClient.from === 'function') {
-          return true;
-        }
-        await new Promise(resolve => setTimeout(resolve, 100));
-      }
-      return false;
+<script src="script.js"></script>
+<script>
+async function waitForSupabase(maxAttempts = 30) {
+  for (let i = 0; i < maxAttempts; i++) {
+    if (typeof window.supabaseClient !== 'undefined' && 
+        typeof window.supabaseClient.from === 'function') {
+      return true;
     }
+    await new Promise(resolve => setTimeout(resolve, 100));
+  }
+  return false;
+}
 
-    // Load header stats
-    async function loadHeaderStats() {
-      try {
-        if (!await waitForSupabase()) {
-          setTimeout(loadHeaderStats, 1000);
-          return;
-        }
-
-        const { count: modCount } = await window.supabaseClient
-          .from('mods2')
-          .select('*', { count: 'exact', head: true })
-          .eq('approved', true);
-          
-        const { count: userCount } = await window.supabaseClient
-          .from('profiles')
-          .select('*', { count: 'exact', head: true });
-          
-        const { data: mods } = await window.supabaseClient
-          .from('mods2')
-          .select('download_count');
+async function loadHeaderStats() {
+  try {
+    if (!await waitForSupabase()) {
+      setTimeout(loadHeaderStats, 1000);
+      return;
+    }
+    const { count: modCount } = await window.supabaseClient
+      .from('mods2')
+      .select('*', { count: 'exact', head: true })
+      .eq('approved', true);
+      
+    const { count: userCount } = await window.supabaseClient
+      .from('profiles')
+      .select('*', { count: 'exact', head: true });
+      
+    const { data: mods } = await window.supabaseClient
+      .from('mods2')
+      .select('download_count');
           
         const downloadCount = mods?.reduce((sum, m) => sum + (m.download_count || 0), 0) || 0;
         
@@ -1004,20 +996,17 @@
       }
     }
 
-    // Initialize
-    document.addEventListener('DOMContentLoaded', async function() {
-      if (await waitForSupabase()) {
-        setTimeout(() => {
-          if (typeof window.checkAuthState === 'function') window.checkAuthState();
-          if (typeof window.loadMods === 'function') window.loadMods();
-          loadHeaderStats();
-        }, 200);
-      } else {
-        console.error('Supabase failed to initialize after multiple attempts');
-      }
-    });
-
-    window.loadHeaderStats = loadHeaderStats;
-  </script>
+document.addEventListener('DOMContentLoaded', async function() {
+  if (await waitForSupabase()) {
+    setTimeout(() => {
+      if (typeof window.checkAuthState === 'function') window.checkAuthState();
+      if (typeof window.loadMods === 'function') window.loadMods();
+      loadHeaderStats();
+    }, 200);
+  } else {
+    console.error('Supabase failed to initialize after multiple attempts');
+  }
+});
+</script>
 </body>
 </html>

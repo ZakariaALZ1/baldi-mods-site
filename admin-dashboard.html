@@ -66,44 +66,44 @@
     <p>🔒 Admin Dashboard - All administrative actions are logged for security</p>
   </footer>
 
-  <script src="script.js"></script>
-  <script>
-    // Wait for supabase to be initialized
-    (async function() {
-      const waitForSupabase = async (maxAttempts = 30) => {
-        for (let i = 0; i < maxAttempts; i++) {
-          if (typeof window.supabaseClient !== 'undefined') {
-            return true;
-          }
-          await new Promise(resolve => setTimeout(resolve, 100));
+<script src="script.js"></script>
+<script>
+  // Wait for supabase to be initialized
+  (async function() {
+    const waitForSupabase = async (maxAttempts = 30) => {
+      for (let i = 0; i < maxAttempts; i++) {
+        if (typeof window.supabaseClient !== 'undefined') {
+          return true;
         }
-        return false;
-      };
-
-      await waitForSupabase();
-      
-      const admin = await window.isAdmin?.();
-      
-      if (!admin) {
-        if (typeof window.showNotification === 'function') {
-          window.showNotification('Access denied. Administrator privileges required.', 'error');
-        }
-        setTimeout(() => {
-          window.location.href = 'index.html';
-        }, 2000);
-        return;
+        await new Promise(resolve => setTimeout(resolve, 100));
       }
-      
-      // User is admin, show content
-      document.getElementById('loading').style.display = 'none';
-      document.getElementById('content').style.display = 'block';
-      
-      // Load admin dashboard data
-      if (typeof loadAdminStats === 'function') loadAdminStats();
-      if (typeof loadFlaggedMods === 'function') loadFlaggedMods();
-      if (typeof loadRiskUsers === 'function') loadRiskUsers();
-      if (typeof loadQuarantineMods === 'function') loadQuarantineMods();
-    })();
-  </script>
+      return false;
+    };
+
+    await waitForSupabase();
+
+    const admin = await window.isAdmin?.();
+
+    if (!admin) {
+      if (typeof window.showNotification === 'function') {
+        window.showNotification('Access denied. Administrator privileges required.', 'error');
+      }
+      setTimeout(() => {
+        window.location.href = 'index.html';
+      }, 2000);
+      return;
+    }
+
+    // User is admin, show content
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('content').style.display = 'block';
+
+    // Load admin dashboard data
+    if (typeof loadAdminStats === 'function') loadAdminStats();
+    if (typeof loadFlaggedMods === 'function') loadFlaggedMods();
+    if (typeof loadRiskUsers === 'function') loadRiskUsers();
+    if (typeof loadQuarantineMods === 'function') loadQuarantineMods();
+  })();
+</script>
 </body>
 </html>

@@ -80,7 +80,6 @@ function showErrorBanner(message) {
   banner.textContent = `❌ ${message}`;
   document.body.prepend(banner);
 }
-
 /* =========================
    GLOBAL STATE MANAGEMENT
 ========================= */
@@ -1271,18 +1270,18 @@ async function loadMods() {
       
       return `
         <div class="gb-card mod-card" data-mod-id="${modId}">
-          <div class="mod-header" style="display: flex; justify-content: space-between; align-items: start;">
+          <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 15px;">
             <h3 style="margin: 0;"><a href="mod.html?id=${encodeURIComponent(modId)}" style="color: #00ff88; text-decoration: none;">${title}</a></h3>
             <div>${riskBadge}</div>
           </div>
-          <div style="display: flex; gap: 10px; margin: 15px 0; font-size: 12px; color: #ccc; flex-wrap: wrap;">
+          <div style="display: flex; gap: 10px; margin-bottom: 15px; font-size: 12px; color: #ccc; flex-wrap: wrap;">
             <span style="background: #333; padding: 4px 8px; border-radius: 4px;">📦 v${version}</span>
             <span style="background: #333; padding: 4px 8px; border-radius: 4px;">👤 ${author}</span>
             ${baldiBadge}
             <span style="background: #333; padding: 4px 8px; border-radius: 4px;">📅 ${date}</span>
           </div>
           <p style="color: #ccc; line-height: 1.6; margin-bottom: 15px;">${description}</p>
-          <div style="display: flex; gap: 8px; margin-bottom: 15px;">
+          <div style="display: flex; gap: 8px; margin-bottom: 15px; flex-wrap: wrap;">
             ${mod.tags?.slice(0, 3).map(tag => `<span style="background: #333; padding: 4px 12px; border-radius: 20px; font-size: 12px; color: #00ff88;">#${escapeHTML(tag)}</span>`).join('') || ''}
           </div>
           <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 15px;">
@@ -1766,7 +1765,7 @@ async function loadFlaggedMods() {
     }
     
     box.innerHTML = data.map(mod => `
-      <div class="gb-card" style="border-left: 4px solid #ff4444;">
+      <div class="gb-card" style="border-left: 4px solid #ff4444; margin-bottom: 15px;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
           <h3 style="margin: 0; color: #fff;">${escapeHTML(mod.title)}</h3>
           <span class="gb-badge" style="background:#ff4444;">⚠️ RISK ${mod.risk_score || 0}</span>
@@ -1820,7 +1819,7 @@ async function loadRiskUsers() {
     }
     
     box.innerHTML = data.map(user => `
-      <div class="gb-card" style="border-left: 4px solid ${user.is_shadow_banned ? '#ff4444' : '#ffaa00'};">
+      <div class="gb-card" style="border-left: 4px solid ${user.is_shadow_banned ? '#ff4444' : '#ffaa00'}; margin-bottom: 15px;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
           <h3 style="margin: 0; color: #fff;">${escapeHTML(user.username || 'Unknown')}</h3>
           <span class="gb-badge" style="background:${user.trust_score < 30 ? '#ff4444' : '#ffaa00'};">Trust: ${user.trust_score || 0}</span>
@@ -1833,7 +1832,7 @@ async function loadRiskUsers() {
         <div style="margin-bottom: 15px; padding: 8px 12px; background: ${user.is_shadow_banned ? '#2a1a1a' : '#1a2a1a'}; border-radius: 5px; color: ${user.is_shadow_banned ? '#ff8888' : '#00ff88'};">
           ${user.is_shadow_banned ? '🔇 Shadow Banned' : '✅ Active'}
         </div>
-        <div style="display: flex; gap: 10px;">
+        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
           ${!user.is_shadow_banned ? 
             `<button onclick="shadowBanUser('${user.id}')" class="gb-btn gb-btn-warning">🔇 Shadow Ban</button>` : 
             `<button onclick="removeShadowBan('${user.id}')" class="gb-btn gb-btn-primary">✓ Remove Ban</button>`
@@ -1878,7 +1877,7 @@ async function loadQuarantineMods() {
     }
     
     box.innerHTML = data.map(mod => `
-      <div class="gb-card" style="border-left: 4px solid #ffaa00;">
+      <div class="gb-card" style="border-left: 4px solid #ffaa00; margin-bottom: 15px;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
           <h3 style="margin: 0; color: #fff;">${escapeHTML(mod.title)}</h3>
           <span class="gb-badge" style="background:#ffaa00;">☣️ Quarantined</span>
@@ -1935,7 +1934,7 @@ async function loadPendingMods() {
     }
     
     box.innerHTML = data.map(mod => `
-      <div class="gb-card review">
+      <div class="gb-card review" style="margin-bottom: 20px;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
           <h3 style="margin: 0; color: #00ff88;">${escapeHTML(mod.title)}</h3>
           <span class="gb-badge">v${escapeHTML(mod.version || '1.0.0')}</span>
@@ -1974,7 +1973,7 @@ async function loadPendingMods() {
             <p style="color: #fff; margin: 0;">${escapeHTML(mod.scan_reason)}</p>
           </div>
         ` : ''}
-        <div style="display: flex; gap: 10px; margin-top: 20px;">
+        <div style="display: flex; gap: 10px; margin-top: 20px; flex-wrap: wrap;">
           <button onclick="approveMod('${mod.id}')" class="gb-btn gb-btn-primary">✅ Approve</button>
           <button onclick="rejectMod('${mod.id}')" class="gb-btn gb-btn-danger">❌ Reject</button>
           <button onclick="quarantineMod('${mod.id}')" class="gb-btn gb-btn-warning">⚠️ Quarantine</button>
@@ -2015,7 +2014,7 @@ async function loadReportedMods() {
     }
     
     box.innerHTML = data.map(mod => `
-      <div class="gb-card" style="border-left: 4px solid #ff4444;">
+      <div class="gb-card" style="border-left: 4px solid #ff4444; margin-bottom: 15px;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
           <h3 style="margin: 0; color: #fff;">${escapeHTML(mod.title)}</h3>
           <span class="gb-badge" style="background:#ff4444;">🚩 Reported</span>
@@ -2026,7 +2025,7 @@ async function loadReportedMods() {
           <span>📅 ${new Date(mod.reported_at || mod.created_at).toLocaleDateString()}</span>
         </div>
         <p style="color: #ffaa00; margin-bottom: 15px;">${escapeHTML(mod.scan_reason || 'User reported')}</p>
-        <div style="display: flex; gap: 10px;">
+        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
           <button onclick="quarantineMod('${mod.id}')" class="gb-btn gb-btn-warning">⚠️ Quarantine</button>
           <button onclick="deleteMod('${mod.id}')" class="gb-btn gb-btn-danger">🗑️ Delete</button>
           <button onclick="clearReport('${mod.id}')" class="gb-btn gb-btn-secondary">✓ Clear</button>

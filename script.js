@@ -1060,6 +1060,8 @@ async function uploadMod() {
       throw new Error(errorMsg);
     }
 
+    const scanResult = await scanResponse.json();
+
     if (!scanResult.safe) {
       setLoading(button, false);
       progressDiv.remove();

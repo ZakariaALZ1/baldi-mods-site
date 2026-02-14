@@ -872,20 +872,20 @@ const joinDate = profile?.join_date ? new Date(profile.join_date).toLocaleDateSt
             <h2 class="gb-profile-name">${escapeHTML(username)}</h2>
             ${roleBadge}
 
-            <div class="gb-profile-stats">
-              <div class="gb-stat">
-                <span class="gb-stat-value">${profile?.upload_count || 0}</span>
-                <span class="gb-stat-label">Uploads</span>
-              </div>
-              <div class="gb-stat">
-                <span class="gb-stat-value">${profile?.download_count || 0}</span>
-                <span class="gb-stat-label">Downloads</span>
-              </div>
-              <div class="gb-stat">
-                <span class="gb-stat-value">⭐</span>
-                <span class="gb-stat-label">${trustScore}</span>
-              </div>
-            </div>
+<div class="gb-profile-stats">
+  <div class="gb-stat">
+    <span class="gb-stat-value">${profile?.upload_count || 0}</span>
+    <span class="gb-stat-label">Uploads</span>
+  </div>
+  <div class="gb-stat">
+    <span class="gb-stat-value">${profile?.download_count || 0}</span>
+    <span class="gb-stat-label">Downloads</span>
+  </div>
+  <div class="gb-stat">
+    <span class="gb-stat-value join-date">${joinDate}</span>
+    <span class="gb-stat-label">Joined</span>
+  </div>
+</div>
 
             <div class="gb-trust-score">
               <div class="gb-trust-header">

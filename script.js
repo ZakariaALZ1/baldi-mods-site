@@ -1017,25 +1017,36 @@ async function uploadMod() {
     const accessToken = session?.access_token;
     if (!accessToken) throw new Error("No valid session");
 
-    // 1. Scan mod file
+    // 1. Scan mod file with timeout
     const formData = new FormData();
     formData.append('file', file);
     formData.append('title', title);
     formData.append('description', description);
 
-    progressDiv.innerHTML = '<div class="gb-loading-spinner"></div> 🔍 Scanning file for malware...';
+    progressDiv.innerHTML = '<div class="gb-loading-spinner"></div> 🔍 Scanning file for malware... (this may take a moment)';
+
+    // Create abort controller for timeout
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 60000); // 60 second timeout
+
     const scanResponse = await fetch(
       'https://deovtpdjugfkccnpxfsm.supabase.co/functions/v1/scan-mod',
       {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${accessToken}` },
-        body: formData
+        body: formData,
+        signal: controller.signal
       }
-    );
+    ).finally(() => clearTimeout(timeoutId));
 
     if (!scanResponse.ok) {
       let errorMsg = 'Scan failed';
-      try { const e = await scanResponse.json(); errorMsg = e.error || e.message || `HTTP ${scanResponse.status}`; } catch { errorMsg = `HTTP ${scanResponse.status}`; }
+      try { 
+        const e = await scanResponse.json(); 
+        errorMsg = e.error || e.message || `HTTP ${scanResponse.status}`; 
+      } catch { 
+        errorMsg = `HTTP ${scanResponse.status}`; 
+      }
       throw new Error(errorMsg);
     }
 
@@ -1129,7 +1140,7 @@ async function uploadMod() {
         risk_score: scanResult.zero_trust_score || 0,
         threat_cluster: scanResult.cluster || 'unknown',
         scan_reason: scanResult.reason,
-        screenshots: screenshotsArray, // 👈 new column
+        screenshots: screenshotsArray,
         download_count: 0,
         view_count: 0,
         created_at: new Date().toISOString(),
@@ -1159,12 +1170,15 @@ async function uploadMod() {
   } catch (err) {
     console.error("Upload failed:", err);
     progressDiv.remove();
-    showNotification("Upload failed: " + (err.message || "Unknown error"), "error");
+    if (err.name === 'AbortError') {
+      showNotification("Upload timed out – please try again", "error");
+    } else {
+      showNotification("Upload failed: " + (err.message || "Unknown error"), "error");
+    }
   } finally {
     setLoading(button, false);
   }
 }
-
 /* =========================
    MOD PAGE - improved error handling + screenshots
 ========================= */

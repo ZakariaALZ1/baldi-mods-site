@@ -851,6 +851,29 @@
     </div>
   </nav>
 
+  <!-- Rules Section (visible to all) -->
+<div class="gb-rules-section" style="margin-bottom: 40px; background: var(--gb-bg-light); padding: 25px; border-radius: 16px; border: 1px solid var(--gb-border);">
+  <h2 style="color: var(--gb-primary); margin-bottom: 20px;">📋 Community Rules</h2>
+  <ul style="color: var(--gb-text-muted); list-style: none; padding: 0;">
+    <li style="margin-bottom: 10px; display: flex; gap: 10px;"><span style="color: var(--gb-primary);">✓</span> Be respectful to other members.</li>
+    <li style="margin-bottom: 10px; display: flex; gap: 10px;"><span style="color: var(--gb-primary);">✓</span> No malware, viruses, or harmful content.</li>
+    <li style="margin-bottom: 10px; display: flex; gap: 10px;"><span style="color: var(--gb-primary);">✓</span> Credit original authors when using assets.</li>
+    <li style="margin-bottom: 10px; display: flex; gap: 10px;"><span style="color: var(--gb-primary);">✓</span> Do not reupload mods without permission.</li>
+    <li style="margin-bottom: 10px; display: flex; gap: 10px;"><span style="color: var(--gb-primary);">✓</span> Keep content appropriate for all ages.</li>
+    <li style="margin-bottom: 10px; display: flex; gap: 10px;"><span style="color: var(--gb-primary);">✓</span> Maximum file size: 100 MB.</li>
+  </ul>
+</div>
+
+<!-- Admin Announcement Section (visible only to admins) -->
+<div id="admin-announcement" class="gb-admin-section" style="display: none; margin-bottom: 40px; background: linear-gradient(135deg, rgba(255,68,68,0.1) 0%, rgba(255,68,68,0.05) 100%); border: 1px solid #ff4444; border-radius: 16px; padding: 25px;">
+  <h2 style="color: #ff4444; margin-bottom: 20px;">📢 Admin Announcement</h2>
+  <div id="announcementContent" style="color: var(--gb-text); background: rgba(0,0,0,0.2); padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+    <p>Welcome admins! You can post important updates here. This section is only visible to administrators.</p>
+    <p><em>To edit this message, modify the HTML in index.html (look for #announcementContent).</em></p>
+  </div>
+  <!-- Optional: Add a textarea for admins to edit on the fly? That would require backend. For now, static. -->
+</div>
+
   <!-- GameBanana Style Auth Card (shown when logged out) -->
   <div class="gb-auth-container" id="auth-section">
     <div class="gb-auth-card">

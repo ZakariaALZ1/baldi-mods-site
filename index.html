@@ -463,21 +463,20 @@
       grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
       gap: 30px;
       margin-top: 30px;
+      align-items: stretch; /* ensures all cards have equal height */
     }
 
-    .gb-mod-card {
-      background: var(--gb-bg-light);
-      border: 1px solid var(--gb-border);
-      border-radius: 20px;
-      overflow: hidden;
-      transition: all 0.3s;
-      position: relative;
+    .gb-card.mod-card {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      transition: transform 0.2s, border-color 0.2s;
     }
 
-    .gb-mod-card:hover {
-      transform: translateY(-8px);
+    .gb-card.mod-card:hover {
+      transform: translateY(-5px);
       border-color: var(--gb-primary);
-      box-shadow: 0 20px 40px rgba(0,255,136,0.15);
+      box-shadow: 0 10px 20px rgba(0,255,136,0.15);
     }
 
     .gb-mod-image {
@@ -493,6 +492,7 @@
 
     .gb-mod-content {
       padding: 25px;
+      flex: 1; /* pushes footer down */
     }
 
     .gb-mod-header {
@@ -734,7 +734,7 @@
       to { transform: rotate(360deg); }
     }
 
-    /* Responsive */
+    /* Responsive improvements */
     @media (max-width: 992px) {
       .gb-header-content {
         flex-direction: column;
@@ -760,6 +760,27 @@
         flex-direction: column;
       }
       .gb-footer-bottom {
+        flex-direction: column;
+        text-align: center;
+      }
+      .gb-mod-meta-grid {
+        grid-template-columns: 1fr 1fr;
+      }
+      .gb-btn-large,
+      .gb-btn {
+        width: 100%;
+        justify-content: center;
+      }
+    }
+
+    @media (max-width: 480px) {
+      .gb-mod-meta-grid {
+        grid-template-columns: 1fr;
+      }
+      .gb-screenshot-grid {
+        grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+      }
+      .gb-stat-card {
         flex-direction: column;
         text-align: center;
       }

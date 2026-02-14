@@ -1392,22 +1392,24 @@ async function loadMods() {
       }
       
       return `
-        <div class="gb-card mod-card" data-mod-id="${modId}">
-          <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 15px;">
-            <h3 style="margin: 0;"><a href="mod.html?id=${encodeURIComponent(modId)}" style="color: #00ff88; text-decoration: none;">${title}</a></h3>
-            <div>${riskBadge}</div>
+        <div class="gb-card mod-card" style="display: flex; flex-direction: column; height: 100%;" data-mod-id="${modId}">
+          <div style="flex: 1;"> <!-- content area -->
+            <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 15px;">
+              <h3 style="margin: 0;"><a href="mod.html?id=${encodeURIComponent(modId)}" style="color: #00ff88; text-decoration: none;">${title}</a></h3>
+              <div>${riskBadge}</div>
+            </div>
+            <div style="display: flex; gap: 10px; margin-bottom: 15px; font-size: 12px; color: #ccc; flex-wrap: wrap;">
+              <span style="background: #333; padding: 4px 8px; border-radius: 4px;">📦 v${version}</span>
+              <span style="background: #333; padding: 4px 8px; border-radius: 4px;">👤 ${author}</span>
+              ${baldiBadge}
+              <span style="background: #333; padding: 4px 8px; border-radius: 4px;">📅 ${date}</span>
+            </div>
+            <p style="color: #ccc; line-height: 1.6; margin-bottom: 15px;">${description}</p>
+            <div style="display: flex; gap: 8px; margin-bottom: 15px; flex-wrap: wrap;">
+              ${mod.tags?.slice(0, 3).map(tag => `<span style="background: #333; padding: 4px 12px; border-radius: 20px; font-size: 12px; color: #00ff88;">#${escapeHTML(tag)}</span>`).join('') || ''}
+            </div>
           </div>
-          <div style="display: flex; gap: 10px; margin-bottom: 15px; font-size: 12px; color: #ccc; flex-wrap: wrap;">
-            <span style="background: #333; padding: 4px 8px; border-radius: 4px;">📦 v${version}</span>
-            <span style="background: #333; padding: 4px 8px; border-radius: 4px;">👤 ${author}</span>
-            ${baldiBadge}
-            <span style="background: #333; padding: 4px 8px; border-radius: 4px;">📅 ${date}</span>
-          </div>
-          <p style="color: #ccc; line-height: 1.6; margin-bottom: 15px;">${description}</p>
-          <div style="display: flex; gap: 8px; margin-bottom: 15px; flex-wrap: wrap;">
-            ${mod.tags?.slice(0, 3).map(tag => `<span style="background: #333; padding: 4px 12px; border-radius: 20px; font-size: 12px; color: #00ff88;">#${escapeHTML(tag)}</span>`).join('') || ''}
-          </div>
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 15px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 15px; border-top: 1px solid var(--gb-border); padding-top: 15px;">
             <div style="display: flex; gap: 15px;">
               <span style="color: #00ff88; font-weight: bold;">📥 ${mod.download_count || 0}</span>
               <span style="color: #00ff88; font-weight: bold;">👁️ ${mod.view_count || 0}</span>
@@ -1433,42 +1435,6 @@ async function loadMods() {
     box.innerHTML = '<div class="gb-error">❌ Failed to load mods. Please refresh.</div>';
   }
 }
-
-async function trackDownload(modId) {
-  try {
-    await supabaseClient.rpc('increment_download_count', { mod_id: modId });
-  } catch (err) {
-    console.error("Failed to track download:", err);
-  }
-}
-
-async function reportMod(id) {
-  const user = await getCurrentUser();
-  if (!user) {
-    return showNotification("Please login to report mods", "error");
-  }
-  
-  try {
-    const { error } = await supabaseClient
-      .from("mods2")
-      .update({ 
-        reported: true,
-        reported_by: user.id,
-        reported_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      })
-      .eq("id", id);
-
-    if (error) throw error;
-    
-    showNotification("✅ Mod reported to moderators", "success");
-    
-  } catch (err) {
-    console.error("Failed to report mod:", err);
-    showNotification("Failed to report mod", "error");
-  }
-}
-
 /* =========================
    PROFILE FUNCTIONS
 ========================= */

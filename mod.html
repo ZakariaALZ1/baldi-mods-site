@@ -40,7 +40,7 @@
       line-height: 1.6;
     }
 
-    /* Header & Nav (same as before, keep from original) */
+    /* Header & Nav */
     .gb-header { background: linear-gradient(180deg, #1a1a1a 0%, #0f0f0f 100%); border-bottom: 3px solid var(--gb-primary); padding: 20px 0; position: sticky; top: 0; z-index: 1000; }
     .gb-header-content { max-width: 1400px; margin: 0 auto; padding: 0 30px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 15px; }
     .gb-logo { display: flex; align-items: center; gap: 15px; }
@@ -108,10 +108,11 @@
       font-weight: 800;
       color: var(--gb-primary);
       box-shadow: 0 10px 20px rgba(0,0,0,0.3);
+      line-height: 1; /* ensure text is centered */
     }
 
     .gb-author-info {
-      padding: 50px 30px 30px;
+      padding: 70px 30px 30px; /* increased top padding from 50px to 70px */
     }
 
     .gb-author-name {
@@ -347,6 +348,7 @@
       padding: 50px;
     }
 
+    /* Responsive */
     @media (max-width: 992px) {
       .gb-mod-grid {
         grid-template-columns: 1fr;
@@ -355,10 +357,32 @@
         position: static;
       }
     }
+
+    @media (max-width: 768px) {
+      .gb-author-avatar {
+        width: 60px;
+        height: 60px;
+        font-size: 28px;
+        bottom: -30px;
+        left: 20px;
+      }
+      .gb-author-info {
+        padding-top: 50px;
+      }
+    }
+
+    @media (max-width: 480px) {
+      .gb-mod-meta-grid {
+        grid-template-columns: 1fr;
+      }
+      .gb-screenshot-grid {
+        grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+      }
+    }
   </style>
 </head>
 <body>
-  <!-- Header (same as before) -->
+  <!-- Header -->
   <header class="gb-header">
     <div class="gb-header-content">
       <div class="gb-logo">

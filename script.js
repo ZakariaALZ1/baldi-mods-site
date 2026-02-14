@@ -1190,13 +1190,19 @@ async function loadModPage() {
       return;
     }
 
-    // ✅ FIX: Use try/catch instead of .catch()
-    try {
-      await supabaseClient.rpc('increment_view_count', { mod_id: mod.id });
-    } catch (err) {
-      console.warn("Failed to increment view count:", err);
+    // Get current user
+    const user = await getCurrentUser();
+
+    // Increment view count only if the viewer is NOT the author
+    if (!user || user.id !== mod.user_id) {
+      try {
+        await supabaseClient.rpc('increment_view_count', { mod_id: mod.id });
+      } catch (err) {
+        console.warn("Failed to increment view count:", err);
+      }
     }
-    // Fetch author profile for sidebar stats
+
+    // Fetch author profile
     const { data: authorProfile } = await supabaseClient
       .from("profiles")
       .select("username, trust_score, upload_count, download_count, is_verified, role")
@@ -1235,7 +1241,7 @@ async function loadModPage() {
         <!-- Sidebar (Author Info) -->
         <div class="gb-mod-sidebar">
           <div class="gb-author-cover"></div>
-          <div class="gb-author-avatar">
+          <div class="gb-author-avatar" style="text-shadow: 0 0 8px var(--gb-primary);">
             ${escapeHTML((authorProfile?.username || 'U').charAt(0).toUpperCase())}
           </div>
           <div class="gb-author-info">
@@ -1435,6 +1441,36 @@ async function loadMods() {
     box.innerHTML = '<div class="gb-error">❌ Failed to load mods. Please refresh.</div>';
   }
 }
+
+/* =========================
+   TRACK DOWNLOAD - prevents author self-counting
+========================= */
+
+async function trackDownload(modId) {
+  // Get current user
+  const user = await getCurrentUser();
+
+  // Fetch mod to check author
+  const { data: mod } = await supabaseClient
+    .from("mods2")
+    .select("user_id")
+    .eq("id", modId)
+    .single();
+
+  // If user is logged in and is the author, do nothing
+  if (user && mod && user.id === mod.user_id) {
+    console.log("Author downloading – count not incremented");
+    return;
+  }
+
+  // Otherwise increment download count
+  try {
+    await supabaseClient.rpc('increment_download_count', { mod_id: modId });
+  } catch (err) {
+    console.error("Failed to track download:", err);
+  }
+}
+
 /* =========================
    PROFILE FUNCTIONS
 ========================= */
@@ -2256,6 +2292,41 @@ async function clearReport(id) {
   } catch (err) {
     console.error("Failed to clear report:", err);
     showNotification("Failed to clear report", "error");
+  }
+}
+
+async function reportMod(id) {
+  const user = await getCurrentUser();
+  if (!user) {
+    return showNotification("Please login to report mods", "error");
+  }
+
+  // Check if we're on mod page with modal
+  const modal = document.getElementById('reportModal');
+  if (modal) {
+    // Use modal
+    document.getElementById('reportModId').value = id;
+    modal.style.display = 'flex';
+  } else {
+    // Fallback: old method (just flag mod)
+    if (!confirm('Report this mod? Moderators will review it.')) return;
+    try {
+      const { error } = await supabaseClient
+        .from("mods2")
+        .update({ 
+          reported: true,
+          reported_by: user.id,
+          reported_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        })
+        .eq("id", id);
+
+      if (error) throw error;
+      showNotification("✅ Mod reported to moderators", "success");
+    } catch (err) {
+      console.error("Failed to report mod:", err);
+      showNotification("Failed to report mod", "error");
+    }
   }
 }
 

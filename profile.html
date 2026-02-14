@@ -462,6 +462,23 @@
       color: var(--gb-text-muted);
       font-size: 13px;
     }
+    /* Ensure join date fits */
+.gb-stat-value.join-date {
+  font-size: 18px;
+  word-break: break-word;
+  white-space: normal;
+  line-height: 1.2;
+}
+
+@media (max-width: 480px) {
+  .gb-profile-stats {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+  .gb-stat-value {
+    font-size: 20px;
+  }
+}
 
     .gb-mod-actions {
       display: flex;
@@ -605,6 +622,25 @@
       margin-bottom: 30px;
       color: var(--gb-text-muted);
     }
+
+    /* Ensure join date fits */
+.gb-stat-value.join-date {
+  font-size: 18px;
+  word-break: break-word;
+  white-space: normal;
+  line-height: 1.2;
+}
+
+/* On very small screens, make the stats stack */
+@media (max-width: 480px) {
+  .gb-profile-stats {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+  .gb-stat-value {
+    font-size: 20px;
+  }
+}
 
     /* Responsive */
     @media (max-width: 1200px) {
@@ -802,11 +838,11 @@ document.getElementById('profile-content').innerHTML = `
   function renderGameBananaProfile(profile, user) {
     const container = document.getElementById('profile-content');
     const username = profile?.username || user.email?.split('@')[0] || 'User';
-    const joinDate = profile?.join_date ? new Date(profile.join_date).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    }) : 'Today';
+const joinDate = profile?.join_date ? new Date(profile.join_date).toLocaleDateString('en-US', {
+  year: 'numeric',
+  month: 'short',
+  day: 'numeric'
+}) : 'Today';
     const trustScore = profile?.trust_score || 100;
 
     let trustColor = '#ff4444';

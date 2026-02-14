@@ -2488,25 +2488,51 @@ async function loadComments(modId) {
   if (!container) return;
 
   try {
+    // Fetch comments
     const { data: comments, error } = await supabaseClient
       .from('comments')
-      .select(`
-        *,
-        profiles:user_id (username, avatar_url),
-        comment_reactions (user_id)
-      `)
+      .select('*')
       .eq('mod_id', modId)
       .order('created_at', { ascending: true });
 
     if (error) throw error;
 
+    // Get user IDs
+    const userIds = [...new Set(comments.map(c => c.user_id))];
+    
+    // Fetch profiles for those users
+    const { data: profiles } = await supabaseClient
+      .from('profiles')
+      .select('id, username')
+      .in('id', userIds);
+
+    const profileMap = {};
+    profiles?.forEach(p => profileMap[p.id] = p.username);
+
+    // Fetch reactions
+    let reactionsMap = {};
+    if (comments.length) {
+      const { data: reactions } = await supabaseClient
+        .from('comment_reactions')
+        .select('comment_id, user_id')
+        .in('comment_id', comments.map(c => c.id));
+      
+      reactionsMap = reactions?.reduce((acc, r) => {
+        if (!acc[r.comment_id]) acc[r.comment_id] = [];
+        acc[r.comment_id].push(r.user_id);
+        return acc;
+      }, {}) || {};
+    }
+
     const user = await getCurrentUser();
 
-    // Group by parent_id for threading (optional)
+    // Group comments by parent
     const topLevel = comments.filter(c => !c.parent_id);
     const replies = comments.filter(c => c.parent_id);
 
-    container.innerHTML = topLevel.map(comment => renderComment(comment, replies.filter(r => r.parent_id === comment.id), user)).join('');
+    container.innerHTML = topLevel.map(comment => 
+      renderComment(comment, replies.filter(r => r.parent_id === comment.id), profileMap, reactionsMap, user)
+    ).join('');
 
   } catch (err) {
     console.error('Failed to load comments:', err);
@@ -2514,17 +2540,17 @@ async function loadComments(modId) {
   }
 }
 
-function renderComment(comment, replies, user) {
+function renderComment(comment, replies, profileMap, reactionsMap, user) {
   const isAuthor = user && user.id === comment.user_id;
-  const reactionCount = comment.comment_reactions?.length || 0;
-  const userReacted = user && comment.comment_reactions?.some(r => r.user_id === user.id);
+  const reactionCount = reactionsMap[comment.id]?.length || 0;
+  const userReacted = user && reactionsMap[comment.id]?.includes(user.id);
 
   return `
     <div class="gb-comment" data-comment-id="${comment.id}" id="comment-${comment.id}">
-      <div class="gb-comment-avatar">${comment.profiles?.username?.charAt(0).toUpperCase() || '?'}</div>
+      <div class="gb-comment-avatar">${profileMap[comment.user_id]?.charAt(0).toUpperCase() || '?'}</div>
       <div class="gb-comment-content">
         <div class="gb-comment-header">
-          <span class="gb-comment-author">${escapeHTML(comment.profiles?.username || 'Unknown')}</span>
+          <span class="gb-comment-author">${escapeHTML(profileMap[comment.user_id] || 'Unknown')}</span>
           <span class="gb-comment-date">${new Date(comment.created_at).toLocaleString()}</span>
           ${comment.updated_at !== comment.created_at ? '<span class="gb-comment-edited">(edited)</span>' : ''}
         </div>
@@ -2539,9 +2565,9 @@ function renderComment(comment, replies, user) {
           <button onclick="toggleCommentReaction('${comment.id}')" class="gb-btn gb-btn-small ${userReacted ? 'gb-btn-primary' : 'gb-btn-secondary'}">
             ❤️ ${reactionCount}
           </button>
-          <button onclick="showReplyForm('${comment.id}')" class="gb-btn gb-btn-small">Reply</button>
+          <!-- Reply button removed for simplicity; you can add later -->
         </div>
-        ${replies.length ? `<div class="gb-comment-replies">${replies.map(r => renderComment(r, [], user)).join('')}</div>` : ''}
+        ${replies.length ? `<div class="gb-comment-replies">${replies.map(r => renderComment(r, [], profileMap, reactionsMap, user)).join('')}</div>` : ''}
       </div>
     </div>
   `;
@@ -2594,7 +2620,8 @@ async function editComment(commentId) {
     if (error) throw error;
 
     showNotification('Comment updated', 'success');
-    loadComments(document.getElementById('reportModId').value); // reload comments
+    const modId = getQueryParam("id");
+    if (modId) loadComments(modId);
   } catch (err) {
     console.error('Failed to edit comment:', err);
     showNotification('Failed to edit comment', 'error');
@@ -2613,7 +2640,8 @@ async function deleteComment(commentId) {
     if (error) throw error;
 
     showNotification('Comment deleted', 'success');
-    loadComments(document.getElementById('reportModId').value);
+    const modId = getQueryParam("id");
+    if (modId) loadComments(modId);
   } catch (err) {
     console.error('Failed to delete comment:', err);
     showNotification('Failed to delete comment', 'error');
@@ -2651,7 +2679,9 @@ async function toggleCommentReaction(commentId) {
       if (error) throw error;
     }
 
-    loadComments(document.getElementById('reportModId').value);
+    // Reload comments
+    const modId = getQueryParam("id");
+    if (modId) loadComments(modId);
   } catch (err) {
     console.error('Failed to toggle reaction:', err);
     showNotification('Failed to update reaction', 'error');
@@ -2687,7 +2717,6 @@ async function toggleFavorite(modId) {
       if (error) throw error;
       showNotification('Added to favorites', 'success');
     }
-    // Update favorite button UI
     updateFavoriteButton(modId);
   } catch (err) {
     console.error('Failed to toggle favorite:', err);

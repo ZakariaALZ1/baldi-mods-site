@@ -1176,16 +1176,17 @@ async function loadModPage() {
     return;
   }
 
-  // Optional: remove strict UUID check, just let Supabase handle it
+  // Optional UUID validation – remove if you use non-UUID IDs
   // const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
   // if (!uuidRegex.test(id)) { ... }
 
   try {
+    // Fetch mod (temporarily remove approved filter for testing)
     const { data: mod, error } = await supabaseClient
       .from("mods2")
       .select("*")
       .eq("id", id)
-      .eq("approved", true)
+      // .eq("approved", true)   // 👈 temporarily remove to see unapproved mods
       .single();
 
     if (error || !mod) {
@@ -1194,71 +1195,117 @@ async function loadModPage() {
       return;
     }
 
+    // Increment view count
     await supabaseClient.rpc('increment_view_count', { mod_id: mod.id }).catch(() => {});
 
-    const modContainer = document.getElementById("mod");
-    if (modContainer) {
-      // Generate screenshot gallery HTML
-      let screenshotsHtml = '';
-      if (mod.screenshots && mod.screenshots.length > 0) {
-        const sorted = mod.screenshots.sort((a,b) => (a.sort_order||0) - (b.sort_order||0));
-        screenshotsHtml = `
-          <div class="gb-screenshots">
-            <h2>Screenshots</h2>
-            <div class="gb-screenshot-grid">
-              ${sorted.map(s => `
-                <div class="gb-screenshot-item ${s.is_main ? 'main' : ''}">
-                  <img src="${escapeHTML(s.url)}" alt="Screenshot" loading="lazy">
-                </div>
-              `).join('')}
-            </div>
-          </div>
-        `;
-      }
+    // Fetch author profile for sidebar stats
+    const { data: authorProfile } = await supabaseClient
+      .from("profiles")
+      .select("username, trust_score, upload_count, download_count, is_verified, role")
+      .eq("id", mod.user_id)
+      .single();
 
-      modContainer.innerHTML = `
-        <div class="gb-mod-page">
-          <div class="gb-mod-header">
-            <h1>${escapeHTML(mod.title)}</h1>
-            <div class="gb-mod-badges">
-              <span class="gb-badge">v${escapeHTML(mod.version || '1.0.0')}</span>
-              <span class="gb-badge">🎮 ${escapeHTML(mod.baldi_version || 'Any')}</span>
-              <span class="gb-badge" style="background:${mod.risk_score < 30 ? '#00ff88' : mod.risk_score < 60 ? '#ffaa00' : '#ff4444'};">
-                ${mod.risk_score < 30 ? '✅ Safe' : mod.risk_score < 60 ? '⚠️ Caution' : '❌ Unsafe'}
-              </span>
+    const modContainer = document.getElementById("mod");
+    if (!modContainer) return;
+
+    // Generate screenshot gallery HTML
+    let screenshotsHtml = '';
+    if (mod.screenshots && mod.screenshots.length > 0) {
+      const sorted = mod.screenshots.sort((a,b) => (a.sort_order||0) - (b.sort_order||0));
+      screenshotsHtml = `
+        <div class="gb-screenshots">
+          <h2>Screenshots</h2>
+          <div class="gb-screenshot-grid">
+            ${sorted.map(s => `
+              <div class="gb-screenshot-item ${s.is_main ? 'main' : ''}">
+                <img src="${escapeHTML(s.url)}" alt="Screenshot" loading="lazy">
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      `;
+    }
+
+    // Determine author badge
+    let authorBadge = '👤 MEMBER';
+    if (authorProfile?.role === 'admin') authorBadge = '👑 ADMIN';
+    else if (authorProfile?.role === 'moderator') authorBadge = '🛡️ MOD';
+    else if (authorProfile?.is_verified) authorBadge = '✅ VERIFIED';
+
+    modContainer.innerHTML = `
+      <div class="gb-mod-grid">
+        <!-- Sidebar (Author Info) -->
+        <div class="gb-mod-sidebar">
+          <div class="gb-author-cover"></div>
+          <div class="gb-author-avatar">
+            ${escapeHTML((authorProfile?.username || 'U').charAt(0).toUpperCase())}
+          </div>
+          <div class="gb-author-info">
+            <div class="gb-author-name">${escapeHTML(authorProfile?.username || 'Unknown')}</div>
+            <div class="gb-author-badge">${authorBadge}</div>
+            
+            <div class="gb-author-stats">
+              <div class="gb-author-stat">
+                <span>📦 Uploads</span>
+                <span class="gb-author-stat-value">${authorProfile?.upload_count || 0}</span>
+              </div>
+              <div class="gb-author-stat">
+                <span>📥 Downloads</span>
+                <span class="gb-author-stat-value">${authorProfile?.download_count || 0}</span>
+              </div>
+              <div class="gb-author-stat">
+                <span>⭐ Trust</span>
+                <span class="gb-author-stat-value">${authorProfile?.trust_score || 0}</span>
+              </div>
+            </div>
+
+            <div class="gb-author-actions">
+              <button class="gb-btn gb-btn-primary gb-btn-block">➕ Add Buddy</button>
+              <button class="gb-btn gb-btn-outline gb-btn-block">🔔 Subscribe</button>
+              <button class="gb-btn gb-btn-outline gb-btn-block">❤️ Thank</button>
             </div>
           </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="gb-mod-main">
+          <h1 class="gb-mod-title">${escapeHTML(mod.title)}</h1>
           
+          <div class="gb-mod-badges">
+            <span class="gb-badge">📦 v${escapeHTML(mod.version || '1.0.0')}</span>
+            <span class="gb-badge">🎮 ${escapeHTML(mod.baldi_version || 'Any')}</span>
+            <span class="gb-badge" style="background:${mod.risk_score < 30 ? '#00ff88' : mod.risk_score < 60 ? '#ffaa00' : '#ff4444'};">
+              ${mod.risk_score < 30 ? '✅ Safe' : mod.risk_score < 60 ? '⚠️ Caution' : '❌ Unsafe'}
+            </span>
+          </div>
+
           <div class="gb-mod-meta-grid">
-            <div class="gb-meta-item"><span class="gb-meta-label">Author</span><span class="gb-meta-value">👤 ${escapeHTML(mod.author_name || 'Unknown')}</span></div>
             <div class="gb-meta-item"><span class="gb-meta-label">Downloads</span><span class="gb-meta-value">📥 ${mod.download_count || 0}</span></div>
             <div class="gb-meta-item"><span class="gb-meta-label">Views</span><span class="gb-meta-value">👁️ ${mod.view_count || 0}</span></div>
             <div class="gb-meta-item"><span class="gb-meta-label">Uploaded</span><span class="gb-meta-value">📅 ${new Date(mod.created_at).toLocaleDateString()}</span></div>
             <div class="gb-meta-item"><span class="gb-meta-label">File Size</span><span class="gb-meta-value">💾 ${formatFileSize(mod.file_size || 0)}</span></div>
-            <div class="gb-meta-item"><span class="gb-meta-label">File Type</span><span class="gb-meta-value">📦 ${escapeHTML(mod.file_extension || 'Unknown')}</span></div>
           </div>
-          
+
+          ${screenshotsHtml}
+
           <div class="gb-mod-description">
             <h2>Description</h2>
             <div class="gb-description-content">${escapeHTML(mod.description).replace(/\n/g, '<br>')}</div>
           </div>
-          
-          ${screenshotsHtml}
-          
+
           ${mod.tags?.length ? `
-            <div class="gb-mod-tags">
-              <h3>Tags</h3>
-              <div class="gb-tag-list">${mod.tags.map(tag => `<span class="gb-tag">#${escapeHTML(tag)}</span>`).join('')}</div>
+            <div class="gb-tag-list">
+              ${mod.tags.map(tag => `<span class="gb-tag">#${escapeHTML(tag)}</span>`).join('')}
             </div>
           ` : ''}
-          
+
           <div class="gb-mod-actions">
             <a href="${escapeHTML(mod.file_url)}" class="gb-btn gb-btn-primary gb-btn-large" target="_blank" rel="noopener noreferrer" onclick="trackDownload('${mod.id}')">⬇️ Download Mod</a>
             <button onclick="reportMod('${mod.id}')" class="gb-btn gb-btn-secondary gb-btn-large">🚩 Report Mod</button>
           </div>
         </div>
-      `;
-    }
+      </div>
+    `;
   } catch (err) {
     console.error("Failed to load mod:", err);
     document.body.innerHTML = `<div class="gb-error-container"><h1>Error loading mod</h1><p>${err.message}</p><a href="index.html" class="gb-btn gb-btn-primary">Back to Home</a></div>`;

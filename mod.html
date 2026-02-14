@@ -12,7 +12,6 @@
   <script src="js/supabase.min.js"></script>
   <script src="config.js"></script>
   <style>
-    /* Same root variables as index.html */
     :root {
       --gb-primary: #00ff88;
       --gb-primary-dark: #00cc66;
@@ -40,36 +39,8 @@
       font-family: 'Inter', sans-serif;
       line-height: 1.6;
     }
-    .gb-screenshots {
-  margin: 30px 0;
-}
-.gb-screenshot-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: 15px;
-  margin-top: 20px;
-}
-.gb-screenshot-item {
-  border-radius: 8px;
-  overflow: hidden;
-  border: 2px solid #333;
-  transition: transform 0.2s;
-}
-.gb-screenshot-item.main {
-  border-color: #00ff88;
-  box-shadow: 0 0 15px rgba(0,255,136,0.3);
-}
-.gb-screenshot-item img {
-  width: 100%;
-  height: 150px;
-  object-fit: cover;
-  display: block;
-}
-.gb-screenshot-item:hover {
-  transform: scale(1.05);
-}
 
-    /* Reuse header/nav styles from index.html */
+    /* Header & Nav (same as before, keep from original) */
     .gb-header { background: linear-gradient(180deg, #1a1a1a 0%, #0f0f0f 100%); border-bottom: 3px solid var(--gb-primary); padding: 20px 0; position: sticky; top: 0; z-index: 1000; }
     .gb-header-content { max-width: 1400px; margin: 0 auto; padding: 0 30px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 15px; }
     .gb-logo { display: flex; align-items: center; gap: 15px; }
@@ -91,56 +62,226 @@
     .gb-btn { padding: 10px 20px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; transition: all 0.2s; display: inline-flex; align-items: center; gap: 8px; }
     .gb-btn-secondary { background: rgba(255,255,255,0.05); color: var(--gb-text); border: 1px solid var(--gb-border); }
 
-    /* Mod Page Specific */
+    /* GameBanana Mod Page Layout */
     .gb-mod-page {
-      max-width: 1000px;
+      max-width: 1400px;
       margin: 40px auto;
       padding: 0 30px;
     }
-    .gb-mod-header {
-      margin-bottom: 30px;
+
+    .gb-mod-grid {
+      display: grid;
+      grid-template-columns: 380px 1fr;
+      gap: 30px;
     }
-    .gb-mod-header h1 {
+
+    /* Sidebar */
+    .gb-mod-sidebar {
+      background: linear-gradient(135deg, #1a1a1a 0%, #151515 100%);
+      border: 1px solid var(--gb-border);
+      border-radius: 20px;
+      overflow: hidden;
+      position: sticky;
+      top: 200px;
+      align-self: start;
+    }
+
+    .gb-author-cover {
+      height: 100px;
+      background: linear-gradient(135deg, var(--gb-primary), var(--gb-primary-dark));
+      position: relative;
+    }
+
+    .gb-author-avatar {
+      position: absolute;
+      bottom: -40px;
+      left: 30px;
+      width: 80px;
+      height: 80px;
+      background: linear-gradient(135deg, #222, #1a1a1a);
+      border: 4px solid var(--gb-primary);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
       font-size: 36px;
+      font-weight: 800;
+      color: var(--gb-primary);
+      box-shadow: 0 10px 20px rgba(0,0,0,0.3);
+    }
+
+    .gb-author-info {
+      padding: 50px 30px 30px;
+    }
+
+    .gb-author-name {
+      font-size: 24px;
+      font-weight: 800;
+      margin-bottom: 5px;
+      color: var(--gb-text);
+    }
+
+    .gb-author-badge {
+      display: inline-block;
+      padding: 4px 12px;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid var(--gb-border);
+      border-radius: 30px;
+      font-size: 12px;
+      color: var(--gb-text-muted);
+      margin-bottom: 20px;
+    }
+
+    .gb-author-stats {
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+      margin-bottom: 25px;
+      padding: 20px 0;
+      border-top: 1px solid var(--gb-border);
+      border-bottom: 1px solid var(--gb-border);
+    }
+
+    .gb-author-stat {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .gb-author-stat-value {
+      font-size: 18px;
+      font-weight: bold;
+      color: var(--gb-primary);
+      margin-left: auto;
+    }
+
+    .gb-author-actions {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .gb-btn-block {
+      width: 100%;
+      padding: 14px;
+      justify-content: center;
+    }
+
+    .gb-btn-primary {
+      background: linear-gradient(135deg, var(--gb-primary), var(--gb-primary-dark));
+      color: black;
+    }
+
+    .gb-btn-outline {
+      background: transparent;
+      border: 2px solid var(--gb-border);
+      color: var(--gb-text);
+    }
+
+    .gb-btn-outline:hover {
+      border-color: var(--gb-primary);
+      color: var(--gb-primary);
+    }
+
+    /* Main Content */
+    .gb-mod-main {
+      background: linear-gradient(135deg, #1a1a1a 0%, #151515 100%);
+      border: 1px solid var(--gb-border);
+      border-radius: 20px;
+      padding: 30px;
+    }
+
+    .gb-mod-title {
+      font-size: 36px;
+      font-weight: 800;
       margin-bottom: 15px;
       word-break: break-word;
     }
+
     .gb-mod-badges {
       display: flex;
       gap: 10px;
       flex-wrap: wrap;
+      margin-bottom: 20px;
     }
+
+    .gb-badge {
+      padding: 4px 12px;
+      border-radius: 30px;
+      font-size: 12px;
+      font-weight: 600;
+      background: var(--gb-bg-lighter);
+      color: var(--gb-text-muted);
+    }
+
     .gb-mod-meta-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-      gap: 20px;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 15px;
       margin-bottom: 30px;
       padding: 20px;
       background: var(--gb-bg-lighter);
       border-radius: 8px;
     }
+
     .gb-meta-item {
       display: flex;
       flex-direction: column;
     }
+
     .gb-meta-label {
       font-size: 12px;
       color: var(--gb-text-muted);
       margin-bottom: 5px;
     }
+
     .gb-meta-value {
       font-size: 16px;
       font-weight: bold;
       color: var(--gb-primary);
       word-break: break-word;
     }
+
+    /* Screenshot Gallery */
+    .gb-screenshots {
+      margin: 30px 0;
+    }
+
+    .gb-screenshot-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 15px;
+      margin-top: 20px;
+    }
+
+    .gb-screenshot-item {
+      border-radius: 8px;
+      overflow: hidden;
+      border: 2px solid var(--gb-border);
+      transition: transform 0.2s;
+    }
+
+    .gb-screenshot-item.main {
+      border-color: var(--gb-primary);
+      box-shadow: 0 0 15px rgba(0,255,136,0.3);
+    }
+
+    .gb-screenshot-item img {
+      width: 100%;
+      height: 150px;
+      object-fit: cover;
+      display: block;
+    }
+
+    .gb-screenshot-item:hover {
+      transform: scale(1.05);
+    }
+
+    /* Description */
     .gb-mod-description {
-      margin-bottom: 30px;
+      margin: 30px 0;
     }
-    .gb-mod-description h2 {
-      margin-bottom: 15px;
-      color: var(--gb-text);
-    }
+
     .gb-description-content {
       background: var(--gb-bg-lighter);
       padding: 20px;
@@ -149,12 +290,14 @@
       white-space: pre-wrap;
       word-break: break-word;
     }
+
     .gb-tag-list {
       display: flex;
       gap: 10px;
       flex-wrap: wrap;
-      margin-top: 10px;
+      margin: 20px 0;
     }
+
     .gb-tag {
       background: #333;
       padding: 4px 12px;
@@ -162,27 +305,60 @@
       font-size: 12px;
       color: var(--gb-primary);
     }
+
     .gb-mod-actions {
       display: flex;
       gap: 15px;
       margin-top: 30px;
       flex-wrap: wrap;
     }
+
     .gb-btn-large {
       padding: 15px 30px;
       font-size: 18px;
     }
+
+    /* Loading/Error states */
+    .gb-loading {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 80px;
+      color: var(--gb-text-muted);
+    }
+
+    .gb-loading-spinner {
+      width: 50px;
+      height: 50px;
+      border: 3px solid rgba(255,255,255,0.1);
+      border-top-color: var(--gb-primary);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin-bottom: 20px;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
     .gb-error-container {
       text-align: center;
       padding: 50px;
     }
-    @media (max-width: 768px) {
-      .gb-mod-header h1 { font-size: 28px; }
-      .gb-mod-actions { flex-direction: column; }
+
+    @media (max-width: 992px) {
+      .gb-mod-grid {
+        grid-template-columns: 1fr;
+      }
+      .gb-mod-sidebar {
+        position: static;
+      }
     }
   </style>
 </head>
 <body>
+  <!-- Header (same as before) -->
   <header class="gb-header">
     <div class="gb-header-content">
       <div class="gb-logo">

@@ -1317,13 +1317,35 @@ async function loadModPage() {
             </div>
           ` : ''}
 
+          <!-- Favorite Button -->
+          <div class="gb-mod-favorite">
+            <button id="favoriteBtn" onclick="toggleFavorite('${mod.id}')" class="gb-btn gb-btn-outline gb-btn-large">🤍 Favorite</button>
+          </div>
+
           <div class="gb-mod-actions">
             <a href="${escapeHTML(mod.file_url)}" class="gb-btn gb-btn-primary gb-btn-large" target="_blank" rel="noopener noreferrer" onclick="trackDownload('${mod.id}')">⬇️ Download Mod</a>
             <button onclick="reportMod('${mod.id}')" class="gb-btn gb-btn-secondary gb-btn-large">🚩 Report Mod</button>
           </div>
+
+          <!-- Comments Section -->
+          <div class="gb-comments-section">
+            <h2>Comments</h2>
+            ${user ? `
+              <div class="gb-add-comment">
+                <textarea id="commentInput" placeholder="Write a comment..." rows="3"></textarea>
+                <button onclick="addComment('${mod.id}', document.getElementById('commentInput').value)" class="gb-btn gb-btn-primary">Post Comment</button>
+              </div>
+            ` : '<p><a href="index.html">Login</a> to comment.</p>'}
+            <div id="commentsContainer" class="gb-comments-container"></div>
+          </div>
         </div>
       </div>
     `;
+
+    // Load comments and favorite status after rendering
+    loadComments(mod.id);
+    updateFavoriteButton(mod.id);
+
   } catch (err) {
     console.error("Failed to load mod:", err);
     document.body.innerHTML = `<div class="gb-error-container"><h1>Error loading mod</h1><p>${err.message}</p><a href="index.html" class="gb-btn gb-btn-primary">Back to Home</a></div>`;
@@ -2456,6 +2478,245 @@ async function clearFlags(modId) {
     showNotification("Failed to clear flags", "error");
   }
 }
+
+/* =========================
+   COMMENTS & FAVORITES
+========================= */
+
+async function loadComments(modId) {
+  const container = document.getElementById('commentsContainer');
+  if (!container) return;
+
+  try {
+    const { data: comments, error } = await supabaseClient
+      .from('comments')
+      .select(`
+        *,
+        profiles:user_id (username, avatar_url),
+        comment_reactions (user_id)
+      `)
+      .eq('mod_id', modId)
+      .order('created_at', { ascending: true });
+
+    if (error) throw error;
+
+    const user = await getCurrentUser();
+
+    // Group by parent_id for threading (optional)
+    const topLevel = comments.filter(c => !c.parent_id);
+    const replies = comments.filter(c => c.parent_id);
+
+    container.innerHTML = topLevel.map(comment => renderComment(comment, replies.filter(r => r.parent_id === comment.id), user)).join('');
+
+  } catch (err) {
+    console.error('Failed to load comments:', err);
+    container.innerHTML = '<div class="gb-error">Failed to load comments</div>';
+  }
+}
+
+function renderComment(comment, replies, user) {
+  const isAuthor = user && user.id === comment.user_id;
+  const reactionCount = comment.comment_reactions?.length || 0;
+  const userReacted = user && comment.comment_reactions?.some(r => r.user_id === user.id);
+
+  return `
+    <div class="gb-comment" data-comment-id="${comment.id}" id="comment-${comment.id}">
+      <div class="gb-comment-avatar">${comment.profiles?.username?.charAt(0).toUpperCase() || '?'}</div>
+      <div class="gb-comment-content">
+        <div class="gb-comment-header">
+          <span class="gb-comment-author">${escapeHTML(comment.profiles?.username || 'Unknown')}</span>
+          <span class="gb-comment-date">${new Date(comment.created_at).toLocaleString()}</span>
+          ${comment.updated_at !== comment.created_at ? '<span class="gb-comment-edited">(edited)</span>' : ''}
+        </div>
+        <div class="gb-comment-text" id="comment-text-${comment.id}">${escapeHTML(comment.content)}</div>
+        ${isAuthor ? `
+          <div class="gb-comment-actions">
+            <button onclick="editComment('${comment.id}')" class="gb-btn gb-btn-small">Edit</button>
+            <button onclick="deleteComment('${comment.id}')" class="gb-btn gb-btn-small gb-btn-danger">Delete</button>
+          </div>
+        ` : ''}
+        <div class="gb-comment-footer">
+          <button onclick="toggleCommentReaction('${comment.id}')" class="gb-btn gb-btn-small ${userReacted ? 'gb-btn-primary' : 'gb-btn-secondary'}">
+            ❤️ ${reactionCount}
+          </button>
+          <button onclick="showReplyForm('${comment.id}')" class="gb-btn gb-btn-small">Reply</button>
+        </div>
+        ${replies.length ? `<div class="gb-comment-replies">${replies.map(r => renderComment(r, [], user)).join('')}</div>` : ''}
+      </div>
+    </div>
+  `;
+}
+
+async function addComment(modId, content, parentId = null) {
+  const user = await getCurrentUser();
+  if (!user) {
+    showNotification('Please login to comment', 'error');
+    return;
+  }
+  if (!content.trim()) {
+    showNotification('Comment cannot be empty', 'error');
+    return;
+  }
+
+  try {
+    const { error } = await supabaseClient
+      .from('comments')
+      .insert({
+        mod_id: modId,
+        user_id: user.id,
+        content: content.trim(),
+        parent_id: parentId
+      });
+
+    if (error) throw error;
+
+    showNotification('Comment added', 'success');
+    document.getElementById('commentInput').value = '';
+    loadComments(modId);
+  } catch (err) {
+    console.error('Failed to add comment:', err);
+    showNotification('Failed to add comment', 'error');
+  }
+}
+
+async function editComment(commentId) {
+  const commentDiv = document.getElementById(`comment-text-${commentId}`);
+  const currentText = commentDiv.innerText;
+  const newText = prompt('Edit your comment:', currentText);
+  if (newText === null || newText.trim() === '') return;
+
+  try {
+    const { error } = await supabaseClient
+      .from('comments')
+      .update({ content: newText.trim(), updated_at: new Date().toISOString() })
+      .eq('id', commentId);
+
+    if (error) throw error;
+
+    showNotification('Comment updated', 'success');
+    loadComments(document.getElementById('reportModId').value); // reload comments
+  } catch (err) {
+    console.error('Failed to edit comment:', err);
+    showNotification('Failed to edit comment', 'error');
+  }
+}
+
+async function deleteComment(commentId) {
+  if (!confirm('Delete this comment?')) return;
+
+  try {
+    const { error } = await supabaseClient
+      .from('comments')
+      .delete()
+      .eq('id', commentId);
+
+    if (error) throw error;
+
+    showNotification('Comment deleted', 'success');
+    loadComments(document.getElementById('reportModId').value);
+  } catch (err) {
+    console.error('Failed to delete comment:', err);
+    showNotification('Failed to delete comment', 'error');
+  }
+}
+
+async function toggleCommentReaction(commentId) {
+  const user = await getCurrentUser();
+  if (!user) {
+    showNotification('Please login to react', 'error');
+    return;
+  }
+
+  try {
+    // Check if user already reacted
+    const { data: existing } = await supabaseClient
+      .from('comment_reactions')
+      .select('id')
+      .eq('comment_id', commentId)
+      .eq('user_id', user.id)
+      .maybeSingle();
+
+    if (existing) {
+      // Remove reaction
+      const { error } = await supabaseClient
+        .from('comment_reactions')
+        .delete()
+        .eq('id', existing.id);
+      if (error) throw error;
+    } else {
+      // Add reaction
+      const { error } = await supabaseClient
+        .from('comment_reactions')
+        .insert({ comment_id: commentId, user_id: user.id });
+      if (error) throw error;
+    }
+
+    loadComments(document.getElementById('reportModId').value);
+  } catch (err) {
+    console.error('Failed to toggle reaction:', err);
+    showNotification('Failed to update reaction', 'error');
+  }
+}
+
+async function toggleFavorite(modId) {
+  const user = await getCurrentUser();
+  if (!user) {
+    showNotification('Please login to favorite', 'error');
+    return;
+  }
+
+  try {
+    const { data: existing } = await supabaseClient
+      .from('favorites')
+      .select('id')
+      .eq('mod_id', modId)
+      .eq('user_id', user.id)
+      .maybeSingle();
+
+    if (existing) {
+      const { error } = await supabaseClient
+        .from('favorites')
+        .delete()
+        .eq('id', existing.id);
+      if (error) throw error;
+      showNotification('Removed from favorites', 'success');
+    } else {
+      const { error } = await supabaseClient
+        .from('favorites')
+        .insert({ mod_id: modId, user_id: user.id });
+      if (error) throw error;
+      showNotification('Added to favorites', 'success');
+    }
+    // Update favorite button UI
+    updateFavoriteButton(modId);
+  } catch (err) {
+    console.error('Failed to toggle favorite:', err);
+    showNotification('Failed to update favorite', 'error');
+  }
+}
+
+async function checkFavorite(modId) {
+  const user = await getCurrentUser();
+  if (!user) return false;
+
+  const { data } = await supabaseClient
+    .from('favorites')
+    .select('id')
+    .eq('mod_id', modId)
+    .eq('user_id', user.id)
+    .maybeSingle();
+
+  return !!data;
+}
+
+async function updateFavoriteButton(modId) {
+  const btn = document.getElementById('favoriteBtn');
+  if (!btn) return;
+  const isFav = await checkFavorite(modId);
+  btn.innerHTML = isFav ? '❤️ Unfavorite' : '🤍 Favorite';
+  btn.className = isFav ? 'gb-btn gb-btn-primary gb-btn-large' : 'gb-btn gb-btn-outline gb-btn-large';
+}
+
 /* =========================
    EXPORT GLOBALS
 ========================= */
@@ -2502,6 +2763,17 @@ window.loadMyMods = loadMyMods;
 window.updateProfile = updateProfile;
 window.loadUserStats = loadUserStats;
 window.loadModPage = loadModPage;
+
+// Comments & favorites functions
+window.loadComments = loadComments;
+window.addComment = addComment;
+window.editComment = editComment;
+window.deleteComment = deleteComment;
+window.toggleCommentReaction = toggleCommentReaction;
+window.toggleFavorite = toggleFavorite;
+window.checkFavorite = checkFavorite;
+window.updateFavoriteButton = updateFavoriteButton;
+window.renderComment = renderComment; // if needed
 
 // Also expose as window.supabaseClient for clarity
 window.supabaseClient = supabaseClient;

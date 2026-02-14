@@ -1503,7 +1503,7 @@ async function trackDownload(modId) {
   
   // Prevent self-counting
   if (user && mod && user.id === mod.user_id) {
-    showNotification("You cannot download your own mod to increase count", "info");
+    showNotification("You cannot increase count btw while downloading the mod again", "info");
     return;
   }
 

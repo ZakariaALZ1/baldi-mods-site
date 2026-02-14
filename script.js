@@ -1498,27 +1498,21 @@ async function loadMods() {
 ========================= */
 
 async function trackDownload(modId) {
-  // Get current user
   const user = await getCurrentUser();
-
-  // Fetch mod to check author
-  const { data: mod } = await supabaseClient
-    .from("mods2")
-    .select("user_id")
-    .eq("id", modId)
-    .single();
-
-  // If user is logged in and is the author, do nothing
+  const { data: mod } = await supabaseClient.from("mods2").select("user_id").eq("id", modId).single();
+  
+  // Prevent self-counting
   if (user && mod && user.id === mod.user_id) {
-    console.log("Author downloading – count not incremented");
+    showNotification("You cannot download your own mod to increase count", "info");
     return;
   }
 
-  // Otherwise increment download count
   try {
     await supabaseClient.rpc('increment_download_count', { mod_id: modId });
+    showNotification("Download started", "success");
   } catch (err) {
     console.error("Failed to track download:", err);
+    showNotification("Download count could not be updated", "error");
   }
 }
 

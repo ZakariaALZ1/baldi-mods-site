@@ -59,8 +59,8 @@ serve(async (req: Request) => {
     // 1. Known malware keywords
     const malwareKeywords = [
       "hack", "crack", "keygen", "cheat engine",
-      "token grabber", "password stealer",
-      "rat", "remote access", "backdoor",
+      "token grabber", "password stealer"
+      , "remote access", "backdoor",
       "injector", "dll inject", "process inject",
       "miner", "cryptominer", "bitcoin miner"
     ];
@@ -77,8 +77,8 @@ serve(async (req: Request) => {
       "powershell", "cmd.exe", "command prompt",
       "regedit", "registry", "startup folder",
       "autorun", "system32", "windows\\system",
-      "wscript", "cscript", "mshta",
-      "vbs", "vbe", "js", "jse"
+      "wscript", "cscript", "mshta"
+      , "vbe", "jse"
     ];
 
     for (const keyword of systemKeywords) {

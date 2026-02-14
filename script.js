@@ -973,45 +973,34 @@ async function guardAdminDashboard() {
 }
 
 /* =========================
-   MOD UPLOAD - 2GB SUPPORT (FIXED JWT HANDLING)
+   MOD UPLOAD - with screenshots
 ========================= */
 
 async function uploadMod() {
   const user = await getCurrentUser();
-  if (!user) {
-    return showNotification("Please login to upload", "error");
-  }
+  if (!user) return showNotification("Please login to upload", "error");
 
-  const title = document.getElementById('title')?.value;
-  const description = document.getElementById('description')?.value;
-  const version = document.getElementById('version')?.value || "1.0.0";
-  const baldiVersion = document.getElementById('baldiVersion')?.value;
-  const tags = document.getElementById('tags')?.value;
+  const title = val("title");
+  const description = val("description");
+  const version = val("version") || "1.0.0";
+  const baldiVersion = val("baldiVersion");
+  const tags = val("tags");
   const file = fileEl("file");
+  const mainScreenshot = fileEl("mainScreenshot");
+  const additionalScreenshots = document.getElementById('screenshots')?.files;
 
-  if (!title || title.length < 3 || title.length > 100) {
-    return showNotification("Title must be 3-100 characters", "error");
-  }
-  
-  if (!description || description.length < 10 || description.length > 5000) {
-    return showNotification("Description must be 10-5000 characters", "error");
-  }
-  
-  if (!file) {
-    return showNotification("Please select a file", "error");
-  }
-  
-  const allowedExtensions = window.ENV?.ALLOWED_FILE_TYPES || ['.zip', '.rar', '.7z', '.baldimod'];
+  // Validation
+  if (!title || title.length < 3 || title.length > 100) return showNotification("Title must be 3-100 characters", "error");
+  if (!description || description.length < 10 || description.length > 5000) return showNotification("Description must be 10-5000 characters", "error");
+  if (!file) return showNotification("Please select a mod file", "error");
+  if (!mainScreenshot) return showNotification("Please select a main screenshot", "error");
+
+  const allowedExtensions = ['.zip', '.rar', '.7z', '.baldimod'];
   const fileExt = '.' + file.name.split('.').pop().toLowerCase();
-  
-  if (!allowedExtensions.includes(fileExt)) {
-    return showNotification(`Only ${allowedExtensions.join(', ')} files allowed`, "error");
-  }
-  
-  const maxSize = window.ENV?.MAX_UPLOAD_SIZE || 2147483648;
-  if (file.size > maxSize) {
-    return showNotification(`File size exceeds ${formatFileSize(maxSize)} limit`, "error");
-  }
+  if (!allowedExtensions.includes(fileExt)) return showNotification(`Only ${allowedExtensions.join(', ')} files allowed`, "error");
+
+  const maxSize = 2147483648; // 2GB
+  if (file.size > maxSize) return showNotification(`File size exceeds 2GB limit`, "error");
 
   const button = document.querySelector('button[onclick="uploadMod()"]');
   setLoading(button, true, '🔍 Scanning file...');
@@ -1023,79 +1012,95 @@ async function uploadMod() {
   document.querySelector('.gb-upload-form')?.appendChild(progressDiv);
 
   try {
-    // Get the current session, refresh if needed
-// Force a fresh token – getUser() auto‑refreshes if needed
-const { data: { user }, error: userError } = await supabaseClient.auth.getUser();
-if (userError || !user) throw new Error("Not authenticated");
+    // Get fresh session token
+    const { data: { session } } = await supabaseClient.auth.getSession();
+    const accessToken = session?.access_token;
+    if (!accessToken) throw new Error("No valid session");
 
-// Now get the session – it will contain the fresh token
-const { data: { session } } = await supabaseClient.auth.getSession();
-const accessToken = session?.access_token;
-if (!accessToken) throw new Error("No valid session");
-
-console.log('Using token (first 20 chars):', accessToken.substring(0,20)); // for debugging
-
+    // 1. Scan mod file
     const formData = new FormData();
     formData.append('file', file);
     formData.append('title', title);
     formData.append('description', description);
 
     progressDiv.innerHTML = '<div class="gb-loading-spinner"></div> 🔍 Scanning file for malware...';
-    
     const scanResponse = await fetch(
       'https://deovtpdjugfkccnpxfsm.supabase.co/functions/v1/scan-mod',
       {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${accessToken}`
-          // Do NOT set Content-Type – browser sets it automatically with the correct boundary
-        },
+        headers: { 'Authorization': `Bearer ${accessToken}` },
         body: formData
       }
     );
 
     if (!scanResponse.ok) {
-      // Try to get error details from response
       let errorMsg = 'Scan failed';
-      try {
-        const errorData = await scanResponse.json();
-        errorMsg = errorData.error || errorData.message || `HTTP ${scanResponse.status}`;
-      } catch {
-        errorMsg = `HTTP ${scanResponse.status}`;
-      }
+      try { const e = await scanResponse.json(); errorMsg = e.error || e.message || `HTTP ${scanResponse.status}`; } catch { errorMsg = `HTTP ${scanResponse.status}`; }
       throw new Error(errorMsg);
     }
 
     const scanResult = await scanResponse.json();
-
     if (!scanResult.safe) {
       setLoading(button, false);
       progressDiv.remove();
-      showNotification(`⛔ File rejected: ${scanResult.reason || 'Security threat detected'}`, "error");
+      showNotification(`⛔ File rejected: ${scanResult.reason || 'Security threat'}`, "error");
       return;
     }
 
+    // 2. Upload mod file to baldi-mods bucket
     const timestamp = Date.now();
     const randomId = crypto.randomUUID?.() || Math.random().toString(36).substring(2);
     const safeFilename = `${randomId}_${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
     const storagePath = `${user.id}/${timestamp}_${safeFilename}`;
 
-    setLoading(button, true, '📤 Uploading...');
-    progressDiv.innerHTML = '<div class="gb-loading-spinner"></div> 📤 Uploading file... This may take a while for large files.';
-
+    setLoading(button, true, '📤 Uploading mod file...');
+    progressDiv.innerHTML = '<div class="gb-loading-spinner"></div> 📤 Uploading mod file...';
     const { error: uploadError } = await supabaseClient.storage
       .from("baldi-mods")
-      .upload(storagePath, file, {
-        cacheControl: '3600',
-        upsert: false
-      });
-
+      .upload(storagePath, file, { cacheControl: '3600', upsert: false });
     if (uploadError) throw uploadError;
 
     const { data: urlData } = supabaseClient.storage
       .from("baldi-mods")
       .getPublicUrl(storagePath);
 
+    // 3. Upload screenshots to mod-screenshots bucket
+    const screenshotsArray = [];
+
+    // Main screenshot
+    setLoading(button, true, '📤 Uploading main screenshot...');
+    progressDiv.innerHTML = '<div class="gb-loading-spinner"></div> 📤 Uploading main screenshot...';
+    const mainExt = mainScreenshot.name.split('.').pop();
+    const mainPath = `${user.id}/main_${timestamp}.${mainExt}`;
+    const { error: mainUploadError } = await supabaseClient.storage
+      .from('mod-screenshots')
+      .upload(mainPath, mainScreenshot);
+    if (mainUploadError) throw mainUploadError;
+    const { data: mainUrl } = supabaseClient.storage
+      .from('mod-screenshots')
+      .getPublicUrl(mainPath);
+    screenshotsArray.push({ url: mainUrl.publicUrl, is_main: true, sort_order: 0 });
+
+    // Additional screenshots (max 4)
+    if (additionalScreenshots && additionalScreenshots.length > 0) {
+      const maxAdditional = 4;
+      for (let i = 0; i < Math.min(additionalScreenshots.length, maxAdditional); i++) {
+        const file = additionalScreenshots[i];
+        progressDiv.innerHTML = `<div class="gb-loading-spinner"></div> 📤 Uploading screenshot ${i+1}...`;
+        const ext = file.name.split('.').pop();
+        const path = `${user.id}/add_${timestamp}_${i}.${ext}`;
+        const { error: addUploadError } = await supabaseClient.storage
+          .from('mod-screenshots')
+          .upload(path, file);
+        if (addUploadError) throw addUploadError;
+        const { data: urlData } = supabaseClient.storage
+          .from('mod-screenshots')
+          .getPublicUrl(path);
+        screenshotsArray.push({ url: urlData.publicUrl, is_main: false, sort_order: i+1 });
+      }
+    }
+
+    // 4. Insert mod record into database
     setLoading(button, true, '💾 Saving...');
     progressDiv.innerHTML = '<div class="gb-loading-spinner"></div> 💾 Publishing mod...';
 
@@ -1124,6 +1129,7 @@ console.log('Using token (first 20 chars):', accessToken.substring(0,20)); // fo
         risk_score: scanResult.zero_trust_score || 0,
         threat_cluster: scanResult.cluster || 'unknown',
         scan_reason: scanResult.reason,
+        screenshots: screenshotsArray, // 👈 new column
         download_count: 0,
         view_count: 0,
         created_at: new Date().toISOString(),
@@ -1132,22 +1138,21 @@ console.log('Using token (first 20 chars):', accessToken.substring(0,20)); // fo
 
     if (dbError) throw dbError;
 
+    // 5. Update user profile upload count
     await supabaseClient
       .from("profiles")
-      .update({ 
-        upload_count: supabaseClient.rpc('increment', { x: 1 }),
-        updated_at: new Date().toISOString()
-      })
+      .update({ upload_count: supabaseClient.rpc('increment', { x: 1 }), updated_at: new Date().toISOString() })
       .eq("id", user.id);
 
     progressDiv.remove();
     showNotification("✅ Mod uploaded successfully! It will be reviewed by moderators.", "success", 8000);
     
     // Clear form
-    ['title', 'description', 'version', 'baldiVersion', 'tags', 'file'].forEach(id => {
+    ['title', 'description', 'version', 'baldiVersion', 'tags', 'file', 'mainScreenshot', 'screenshots'].forEach(id => {
       const el = document.getElementById(id);
       if (el) el.value = id === 'version' ? '1.0.0' : '';
     });
+    document.getElementById('screenshotPreviews').innerHTML = '';
     
     setTimeout(() => window.location.href = "profile.html", 2000);
 
@@ -1160,6 +1165,105 @@ console.log('Using token (first 20 chars):', accessToken.substring(0,20)); // fo
   }
 }
 
+/* =========================
+   MOD PAGE - improved error handling + screenshots
+========================= */
+
+async function loadModPage() {
+  const id = getQueryParam("id");
+  if (!id) {
+    window.location.href = "index.html";
+    return;
+  }
+
+  // Optional: remove strict UUID check, just let Supabase handle it
+  // const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  // if (!uuidRegex.test(id)) { ... }
+
+  try {
+    const { data: mod, error } = await supabaseClient
+      .from("mods2")
+      .select("*")
+      .eq("id", id)
+      .eq("approved", true)
+      .single();
+
+    if (error || !mod) {
+      console.error("Supabase error:", error);
+      document.body.innerHTML = `<div class="gb-error-container"><h1>Mod not found</h1><p>${error?.message || 'Unknown error'}</p><a href="index.html" class="gb-btn gb-btn-primary">Back to Home</a></div>`;
+      return;
+    }
+
+    await supabaseClient.rpc('increment_view_count', { mod_id: mod.id }).catch(() => {});
+
+    const modContainer = document.getElementById("mod");
+    if (modContainer) {
+      // Generate screenshot gallery HTML
+      let screenshotsHtml = '';
+      if (mod.screenshots && mod.screenshots.length > 0) {
+        const sorted = mod.screenshots.sort((a,b) => (a.sort_order||0) - (b.sort_order||0));
+        screenshotsHtml = `
+          <div class="gb-screenshots">
+            <h2>Screenshots</h2>
+            <div class="gb-screenshot-grid">
+              ${sorted.map(s => `
+                <div class="gb-screenshot-item ${s.is_main ? 'main' : ''}">
+                  <img src="${escapeHTML(s.url)}" alt="Screenshot" loading="lazy">
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        `;
+      }
+
+      modContainer.innerHTML = `
+        <div class="gb-mod-page">
+          <div class="gb-mod-header">
+            <h1>${escapeHTML(mod.title)}</h1>
+            <div class="gb-mod-badges">
+              <span class="gb-badge">v${escapeHTML(mod.version || '1.0.0')}</span>
+              <span class="gb-badge">🎮 ${escapeHTML(mod.baldi_version || 'Any')}</span>
+              <span class="gb-badge" style="background:${mod.risk_score < 30 ? '#00ff88' : mod.risk_score < 60 ? '#ffaa00' : '#ff4444'};">
+                ${mod.risk_score < 30 ? '✅ Safe' : mod.risk_score < 60 ? '⚠️ Caution' : '❌ Unsafe'}
+              </span>
+            </div>
+          </div>
+          
+          <div class="gb-mod-meta-grid">
+            <div class="gb-meta-item"><span class="gb-meta-label">Author</span><span class="gb-meta-value">👤 ${escapeHTML(mod.author_name || 'Unknown')}</span></div>
+            <div class="gb-meta-item"><span class="gb-meta-label">Downloads</span><span class="gb-meta-value">📥 ${mod.download_count || 0}</span></div>
+            <div class="gb-meta-item"><span class="gb-meta-label">Views</span><span class="gb-meta-value">👁️ ${mod.view_count || 0}</span></div>
+            <div class="gb-meta-item"><span class="gb-meta-label">Uploaded</span><span class="gb-meta-value">📅 ${new Date(mod.created_at).toLocaleDateString()}</span></div>
+            <div class="gb-meta-item"><span class="gb-meta-label">File Size</span><span class="gb-meta-value">💾 ${formatFileSize(mod.file_size || 0)}</span></div>
+            <div class="gb-meta-item"><span class="gb-meta-label">File Type</span><span class="gb-meta-value">📦 ${escapeHTML(mod.file_extension || 'Unknown')}</span></div>
+          </div>
+          
+          <div class="gb-mod-description">
+            <h2>Description</h2>
+            <div class="gb-description-content">${escapeHTML(mod.description).replace(/\n/g, '<br>')}</div>
+          </div>
+          
+          ${screenshotsHtml}
+          
+          ${mod.tags?.length ? `
+            <div class="gb-mod-tags">
+              <h3>Tags</h3>
+              <div class="gb-tag-list">${mod.tags.map(tag => `<span class="gb-tag">#${escapeHTML(tag)}</span>`).join('')}</div>
+            </div>
+          ` : ''}
+          
+          <div class="gb-mod-actions">
+            <a href="${escapeHTML(mod.file_url)}" class="gb-btn gb-btn-primary gb-btn-large" target="_blank" rel="noopener noreferrer" onclick="trackDownload('${mod.id}')">⬇️ Download Mod</a>
+            <button onclick="reportMod('${mod.id}')" class="gb-btn gb-btn-secondary gb-btn-large">🚩 Report Mod</button>
+          </div>
+        </div>
+      `;
+    }
+  } catch (err) {
+    console.error("Failed to load mod:", err);
+    document.body.innerHTML = `<div class="gb-error-container"><h1>Error loading mod</h1><p>${err.message}</p><a href="index.html" class="gb-btn gb-btn-primary">Back to Home</a></div>`;
+  }
+}
 /* =========================
    MOD LISTING - GAMEBANANA STYLE
 ========================= */

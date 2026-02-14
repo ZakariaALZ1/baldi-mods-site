@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <!-- Security Headers - X-Frame-Options REMOVED (must be in vercel.json) -->
+  <!-- Security Headers -->
   <meta http-equiv="X-Content-Type-Options" content="nosniff">
   <meta http-equiv="Referrer-Policy" content="strict-origin-when-cross-origin">
   
@@ -83,12 +83,15 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 15px;
     }
 
     .gb-logo {
       display: flex;
       align-items: center;
       gap: 15px;
+      flex-wrap: wrap;
     }
 
     .gb-logo-icon {
@@ -102,6 +105,7 @@
       letter-spacing: -0.5px;
       background: linear-gradient(135deg, #fff 0%, #00ff88 100%);
       -webkit-background-clip: text;
+      background-clip: text;
       -webkit-text-fill-color: transparent;
       margin-bottom: 5px;
     }
@@ -115,6 +119,7 @@
     .gb-header-stats {
       display: flex;
       gap: 30px;
+      flex-wrap: wrap;
     }
 
     .gb-header-stat {
@@ -152,12 +157,15 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 15px;
     }
 
     .gb-nav-links {
       display: flex;
       gap: 5px;
       padding: 10px 0;
+      flex-wrap: wrap;
     }
 
     .gb-nav-item {
@@ -171,6 +179,7 @@
       display: flex;
       align-items: center;
       gap: 8px;
+      white-space: nowrap;
     }
 
     .gb-nav-item:hover {
@@ -188,6 +197,7 @@
       display: flex;
       align-items: center;
       gap: 20px;
+      flex-wrap: wrap;
     }
 
     .gb-user-badge {
@@ -254,6 +264,7 @@
       margin-bottom: 10px;
       background: linear-gradient(135deg, #fff 0%, var(--gb-primary) 100%);
       -webkit-background-clip: text;
+      background-clip: text;
       -webkit-text-fill-color: transparent;
     }
 
@@ -295,6 +306,7 @@
       display: flex;
       gap: 15px;
       margin-top: 30px;
+      flex-wrap: wrap;
     }
 
     .gb-btn {
@@ -310,6 +322,7 @@
       align-items: center;
       justify-content: center;
       gap: 10px;
+      min-width: 150px;
     }
 
     .gb-btn-primary {
@@ -344,12 +357,15 @@
       justify-content: space-between;
       align-items: flex-end;
       margin-bottom: 30px;
+      flex-wrap: wrap;
+      gap: 15px;
     }
 
     .gb-section-title {
       display: flex;
       align-items: center;
       gap: 15px;
+      flex-wrap: wrap;
     }
 
     .gb-section-title h2 {
@@ -441,10 +457,10 @@
       color: black;
     }
 
-    /* GameBanana Mod Grid */
+    /* GameBanana Mod Grid - Responsive */
     .gb-mod-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
       gap: 30px;
       margin-top: 30px;
     }
@@ -481,8 +497,10 @@
 
     .gb-mod-header {
       display: flex;
+      flex-wrap: wrap;
       justify-content: space-between;
       align-items: flex-start;
+      gap: 10px;
       margin-bottom: 15px;
     }
 
@@ -492,6 +510,7 @@
       color: var(--gb-text);
       text-decoration: none;
       transition: color 0.2s;
+      word-break: break-word;
     }
 
     .gb-mod-title:hover {
@@ -511,6 +530,7 @@
       font-weight: 600;
       background: var(--gb-bg-lighter);
       color: var(--gb-text-muted);
+      white-space: nowrap;
     }
 
     .gb-badge.verified {
@@ -525,6 +545,7 @@
 
     .gb-mod-meta {
       display: flex;
+      flex-wrap: wrap;
       gap: 20px;
       margin-bottom: 20px;
       font-size: 14px;
@@ -542,12 +563,15 @@
       margin-bottom: 20px;
       line-height: 1.6;
       font-size: 14px;
+      word-break: break-word;
     }
 
     .gb-mod-footer {
       display: flex;
+      flex-wrap: wrap;
       justify-content: space-between;
       align-items: center;
+      gap: 15px;
       margin-top: 20px;
       padding-top: 20px;
       border-top: 1px solid var(--gb-border);
@@ -555,7 +579,8 @@
 
     .gb-mod-stats {
       display: flex;
-      gap: 20px;
+      flex-wrap: wrap;
+      gap: 15px;
     }
 
     .gb-mod-stat {
@@ -564,10 +589,12 @@
       gap: 5px;
       color: var(--gb-primary);
       font-weight: 600;
+      white-space: nowrap;
     }
 
     .gb-mod-actions {
       display: flex;
+      flex-wrap: wrap;
       gap: 10px;
     }
 
@@ -581,6 +608,7 @@
       display: flex;
       align-items: center;
       gap: 8px;
+      white-space: nowrap;
     }
 
     .gb-mod-btn-primary {
@@ -617,7 +645,7 @@
       margin: 0 auto;
       padding: 0 30px;
       display: grid;
-      grid-template-columns: 2fr 1fr 1fr 1fr;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
       gap: 60px;
     }
 
@@ -658,14 +686,17 @@
       padding: 30px 30px 0;
       border-top: 1px solid var(--gb-border);
       display: flex;
+      flex-wrap: wrap;
       justify-content: space-between;
       align-items: center;
+      gap: 20px;
       color: var(--gb-text-dark);
     }
 
     .gb-social-links {
       display: flex;
       gap: 20px;
+      flex-wrap: wrap;
     }
 
     .gb-social-link {
@@ -704,46 +735,33 @@
     }
 
     /* Responsive */
-    @media (max-width: 1200px) {
-      .gb-footer-content {
-        grid-template-columns: repeat(2, 1fr);
-      }
-    }
-
     @media (max-width: 992px) {
       .gb-header-content {
         flex-direction: column;
-        gap: 20px;
+        text-align: center;
       }
-      
-      .gb-nav-container {
-        flex-direction: column;
-        padding: 15px;
-      }
-      
       .gb-nav-links {
-        flex-wrap: wrap;
         justify-content: center;
-      }
-      
-      .gb-mod-grid {
-        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
       }
     }
 
     @media (max-width: 768px) {
-      .gb-footer-content {
+      .gb-mod-grid {
         grid-template-columns: 1fr;
       }
-      
-      .gb-footer-bottom {
+      .gb-mod-footer {
         flex-direction: column;
-        gap: 20px;
-        text-align: center;
+        align-items: stretch;
       }
-      
+      .gb-mod-actions {
+        justify-content: center;
+      }
       .gb-auth-buttons {
         flex-direction: column;
+      }
+      .gb-footer-bottom {
+        flex-direction: column;
+        text-align: center;
       }
     }
   </style>
@@ -781,21 +799,11 @@
   <nav class="gb-nav" id="main-nav">
     <div class="gb-nav-container">
       <div class="gb-nav-links">
-        <a href="index.html" class="gb-nav-item active">
-          <span>🏠</span> Home
-        </a>
-        <a href="upload.html" class="gb-nav-item" id="nav-upload">
-          <span>📤</span> Upload
-        </a>
-        <a href="profile.html" class="gb-nav-item" id="nav-profile">
-          <span>👤</span> Profile
-        </a>
-        <a href="admin.html" class="gb-nav-item" id="nav-admin" style="display: none;">
-          <span>🛡️</span> Moderation
-        </a>
-        <a href="admin-dashboard.html" class="gb-nav-item" id="nav-dashboard" style="display: none;">
-          <span>📊</span> Dashboard
-        </a>
+        <a href="index.html" class="gb-nav-item active">🏠 Home</a>
+        <a href="upload.html" class="gb-nav-item" id="nav-upload">📤 Upload</a>
+        <a href="profile.html" class="gb-nav-item" id="nav-profile">👤 Profile</a>
+        <a href="admin.html" class="gb-nav-item" id="nav-admin" style="display: none;">🛡️ Moderation</a>
+        <a href="admin-dashboard.html" class="gb-nav-item" id="nav-dashboard" style="display: none;">📊 Dashboard</a>
       </div>
       
       <div class="gb-nav-user" id="user-section" style="display: none;">
@@ -807,7 +815,7 @@
           </div>
         </div>
         <button onclick="logout()" class="gb-btn gb-btn-secondary" style="padding: 10px 20px;">
-          <span>🚪</span> Logout
+          🚪 Logout
         </button>
       </div>
     </div>
@@ -832,12 +840,8 @@
       </div>
       
       <div class="gb-auth-buttons">
-        <button onclick="signUp()" class="gb-btn gb-btn-primary">
-          <span>✨</span> Sign Up
-        </button>
-        <button onclick="signIn()" class="gb-btn gb-btn-secondary">
-          <span>🔐</span> Login
-        </button>
+        <button onclick="signUp()" class="gb-btn gb-btn-primary">✨ Sign Up</button>
+        <button onclick="signIn()" class="gb-btn gb-btn-secondary">🔐 Login</button>
       </div>
       
       <p style="text-align: center; margin-top: 25px; color: #666; font-size: 13px;">

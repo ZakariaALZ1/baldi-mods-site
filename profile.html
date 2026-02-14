@@ -731,6 +731,43 @@
 
 <script src="script.js"></script>
 <script>
+    // ============================================
+  //  handle both own and public profiles
+  // ============================================
+  (async function() {
+  const waitForSupabase = async (maxAttempts = 30) => {
+    for (let i = 0; i < maxAttempts; i++) {
+      if (typeof window.supabaseClient !== 'undefined') return true;
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+    return false;
+  };
+  await waitForSupabase();
+
+  const targetUserId = getQueryParam("id");
+  if (targetUserId) {
+    // Public profile
+    document.getElementById('profile-loading').style.display = 'none';
+    document.getElementById('profile-content').style.display = 'block';
+    if (typeof loadPublicProfile === 'function') {
+      loadPublicProfile(targetUserId);
+    } else {
+      console.error('loadPublicProfile not found');
+    }
+  } else {
+    // Own profile – existing auth guard
+    const { data: { user }, error } = await supabaseClient.auth.getUser();
+    if (error || !user) {
+      window.location.href = 'index.html?redirect=profile';
+      return;
+    }
+    document.getElementById('profile-loading').style.display = 'none';
+    document.getElementById('profile-content').style.display = 'block';
+    if (typeof loadProfilePage === 'function') loadProfilePage();
+    if (typeof loadMyMods === 'function') loadMyMods();
+    if (typeof checkAuthState === 'function') checkAuthState();
+  }
+})();
   // ============================================
   // SECURITY: AUTH GUARD - Redirect if not logged in
   // ============================================

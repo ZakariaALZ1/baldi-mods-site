@@ -1179,6 +1179,7 @@ async function uploadMod() {
     setLoading(button, false);
   }
 }
+
 /* =========================
    MOD PAGE - improved error handling + screenshots
 ========================= */
@@ -1223,6 +1224,19 @@ async function loadModPage() {
       .eq("id", mod.user_id)
       .single();
 
+    // Fetch buddy, subscriber, thank status for current user
+    let isBuddy = false, isSubscribed = false, hasThanked = false;
+    if (user) {
+      const [buddyRes, subRes, thankRes] = await Promise.all([
+        supabaseClient.from('buddies').select('id').eq('user_id', user.id).eq('buddy_id', mod.user_id).maybeSingle(),
+        supabaseClient.from('subscriptions').select('id').eq('subscriber_id', user.id).eq('target_id', mod.user_id).maybeSingle(),
+        supabaseClient.from('thanks').select('id').eq('mod_id', mod.id).eq('user_id', user.id).maybeSingle()
+      ]);
+      isBuddy = !!buddyRes.data;
+      isSubscribed = !!subRes.data;
+      hasThanked = !!thankRes.data;
+    }
+
     const modContainer = document.getElementById("mod");
     if (!modContainer) return;
 
@@ -1259,7 +1273,7 @@ async function loadModPage() {
             ${escapeHTML((authorProfile?.username || 'U').charAt(0).toUpperCase())}
           </div>
           <div class="gb-author-info">
-            <div class="gb-author-name">${escapeHTML(authorProfile?.username || 'Unknown')}</div>
+            <div class="gb-author-name"><a href="profile.html?id=${mod.user_id}" style="color: inherit; text-decoration: none;">${escapeHTML(authorProfile?.username || 'Unknown')}</a></div>
             <div class="gb-author-badge">${authorBadge}</div>
             
             <div class="gb-author-stats">
@@ -1278,9 +1292,9 @@ async function loadModPage() {
             </div>
 
             <div class="gb-author-actions">
-              <button class="gb-btn gb-btn-primary gb-btn-block">➕ Add Buddy</button>
-              <button class="gb-btn gb-btn-outline gb-btn-block">🔔 Subscribe</button>
-              <button class="gb-btn gb-btn-outline gb-btn-block">❤️ Thank</button>
+              <button onclick="toggleBuddy('${mod.user_id}')" class="gb-btn ${isBuddy ? 'gb-btn-primary' : 'gb-btn-outline'} gb-btn-block" id="buddyBtn-${mod.user_id}">${isBuddy ? '✓ Buddy' : '+ Add Buddy'}</button>
+              <button onclick="toggleSubscribe('${mod.user_id}')" class="gb-btn ${isSubscribed ? 'gb-btn-primary' : 'gb-btn-outline'} gb-btn-block" id="subBtn-${mod.user_id}">${isSubscribed ? '🔔 Subscribed' : '🔔 Subscribe'}</button>
+              <button onclick="toggleThank('${mod.id}')" class="gb-btn ${hasThanked ? 'gb-btn-primary' : 'gb-btn-outline'} gb-btn-block" id="thankBtn-${mod.id}">${hasThanked ? '❤️ Thanked' : '❤️ Thank'}</button>
             </div>
           </div>
         </div>
@@ -1351,6 +1365,7 @@ async function loadModPage() {
     document.body.innerHTML = `<div class="gb-error-container"><h1>Error loading mod</h1><p>${err.message}</p><a href="index.html" class="gb-btn gb-btn-primary">Back to Home</a></div>`;
   }
 }
+
 /* =========================
    MOD LISTING - GAMEBANANA STYLE
 ========================= */
@@ -1508,7 +1523,110 @@ async function trackDownload(modId) {
 }
 
 /* =========================
-   PROFILE FUNCTIONS
+   BUDDY, SUBSCRIBE, THANK FUNCTIONS
+========================= */
+
+async function toggleBuddy(targetUserId) {
+  const user = await getCurrentUser();
+  if (!user) { showNotification("Please login", "error"); return; }
+  if (user.id === targetUserId) { showNotification("You cannot add yourself as a buddy", "warning"); return; }
+  try {
+    const { data: existing } = await supabaseClient
+      .from('buddies')
+      .select('id')
+      .eq('user_id', user.id)
+      .eq('buddy_id', targetUserId)
+      .maybeSingle();
+    if (existing) {
+      const { error } = await supabaseClient.from('buddies').delete().eq('id', existing.id);
+      if (error) throw error;
+      showNotification("Buddy removed", "success");
+    } else {
+      const { error } = await supabaseClient.from('buddies').insert({ user_id: user.id, buddy_id: targetUserId });
+      if (error) throw error;
+      showNotification("Buddy added", "success");
+    }
+    // Update button
+    const btn = document.getElementById(`buddyBtn-${targetUserId}`);
+    if (btn) {
+      const isNow = !existing;
+      btn.innerHTML = isNow ? '✓ Buddy' : '+ Add Buddy';
+      btn.className = isNow ? 'gb-btn gb-btn-primary gb-btn-block' : 'gb-btn gb-btn-outline gb-btn-block';
+    }
+  } catch (err) {
+    console.error("Buddy error:", err);
+    showNotification("Failed to update buddy", "error");
+  }
+}
+
+async function toggleSubscribe(targetUserId) {
+  const user = await getCurrentUser();
+  if (!user) { showNotification("Please login", "error"); return; }
+  if (user.id === targetUserId) { showNotification("You cannot subscribe to yourself", "warning"); return; }
+  try {
+    const { data: existing } = await supabaseClient
+      .from('subscriptions')
+      .select('id')
+      .eq('subscriber_id', user.id)
+      .eq('target_id', targetUserId)
+      .maybeSingle();
+    if (existing) {
+      const { error } = await supabaseClient.from('subscriptions').delete().eq('id', existing.id);
+      if (error) throw error;
+      showNotification("Unsubscribed", "success");
+    } else {
+      const { error } = await supabaseClient.from('subscriptions').insert({ subscriber_id: user.id, target_id: targetUserId });
+      if (error) throw error;
+      showNotification("Subscribed", "success");
+    }
+    const btn = document.getElementById(`subBtn-${targetUserId}`);
+    if (btn) {
+      const isNow = !existing;
+      btn.innerHTML = isNow ? '🔔 Subscribed' : '🔔 Subscribe';
+      btn.className = isNow ? 'gb-btn gb-btn-primary gb-btn-block' : 'gb-btn gb-btn-outline gb-btn-block';
+    }
+  } catch (err) {
+    console.error("Subscribe error:", err);
+    showNotification("Failed to update subscription", "error");
+  }
+}
+
+async function toggleThank(modId) {
+  const user = await getCurrentUser();
+  if (!user) { showNotification("Please login", "error"); return; }
+  // Fetch mod author
+  const { data: mod } = await supabaseClient.from('mods2').select('user_id').eq('id', modId).single();
+  if (user.id === mod.user_id) { showNotification("You cannot thank your own mod", "warning"); return; }
+  try {
+    const { data: existing } = await supabaseClient
+      .from('thanks')
+      .select('id')
+      .eq('mod_id', modId)
+      .eq('user_id', user.id)
+      .maybeSingle();
+    if (existing) {
+      const { error } = await supabaseClient.from('thanks').delete().eq('id', existing.id);
+      if (error) throw error;
+      showNotification("Thank removed", "success");
+    } else {
+      const { error } = await supabaseClient.from('thanks').insert({ mod_id: modId, user_id: user.id });
+      if (error) throw error;
+      showNotification("Thanked!", "success");
+    }
+    const btn = document.getElementById(`thankBtn-${modId}`);
+    if (btn) {
+      const isNow = !existing;
+      btn.innerHTML = isNow ? '❤️ Thanked' : '❤️ Thank';
+      btn.className = isNow ? 'gb-btn gb-btn-primary gb-btn-block' : 'gb-btn gb-btn-outline gb-btn-block';
+    }
+  } catch (err) {
+    console.error("Thank error:", err);
+    showNotification("Failed to update thank", "error");
+  }
+}
+
+/* =========================
+   PROFILE FUNCTIONS (own profile)
 ========================= */
 
 async function loadProfilePage() {
@@ -2550,7 +2668,7 @@ function renderComment(comment, replies, profileMap, reactionsMap, user) {
       <div class="gb-comment-avatar">${profileMap[comment.user_id]?.charAt(0).toUpperCase() || '?'}</div>
       <div class="gb-comment-content">
         <div class="gb-comment-header">
-          <span class="gb-comment-author">${escapeHTML(profileMap[comment.user_id] || 'Unknown')}</span>
+          <span class="gb-comment-author"><a href="profile.html?id=${comment.user_id}" style="color: inherit; text-decoration: none;">${escapeHTML(profileMap[comment.user_id] || 'Unknown')}</a></span>
           <span class="gb-comment-date">${new Date(comment.created_at).toLocaleString()}</span>
           ${comment.updated_at !== comment.created_at ? '<span class="gb-comment-edited">(edited)</span>' : ''}
         </div>
@@ -2747,6 +2865,80 @@ async function updateFavoriteButton(modId) {
 }
 
 /* =========================
+   PUBLIC PROFILE (view other users)
+========================= */
+
+async function loadPublicProfile(userId) {
+  const container = document.getElementById('profile-content');
+  if (!container) return;
+  try {
+    const { data: profile, error } = await supabaseClient.from('profiles').select('*').eq('id', userId).single();
+    if (error || !profile) { container.innerHTML = '<div class="gb-error">User not found</div>'; return; }
+    const user = await getCurrentUser();
+    let isBuddy = false, isSubscribed = false;
+    if (user) {
+      const [buddyRes, subRes] = await Promise.all([
+        supabaseClient.from('buddies').select('id').eq('user_id', user.id).eq('buddy_id', userId).maybeSingle(),
+        supabaseClient.from('subscriptions').select('id').eq('subscriber_id', user.id).eq('target_id', userId).maybeSingle()
+      ]);
+      isBuddy = !!buddyRes.data;
+      isSubscribed = !!subRes.data;
+    }
+    const joinDate = new Date(profile.join_date).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+    let trustColor = profile.trust_score >= 80 ? '#00ff88' : profile.trust_score >= 50 ? '#ffaa00' : '#ff4444';
+    let roleBadge = profile.role === 'admin' ? '<span class="gb-profile-badge admin">👑 ADMIN</span>' :
+                    profile.role === 'moderator' ? '<span class="gb-profile-badge moderator">🛡️ MOD</span>' :
+                    profile.is_verified ? '<span class="gb-profile-badge verified">✅ VERIFIED</span>' : '<span class="gb-profile-badge">👤 USER</span>';
+    container.innerHTML = `
+      <div class="gb-profile-container">
+        <div class="gb-profile-sidebar">
+          <div class="gb-profile-cover"></div>
+          <div class="gb-profile-avatar">${profile.username?.charAt(0).toUpperCase() || '?'}</div>
+          <div class="gb-profile-info">
+            <h2 class="gb-profile-name">${escapeHTML(profile.username)}</h2>
+            ${roleBadge}
+            <div class="gb-profile-stats">
+              <div class="gb-stat"><span class="gb-stat-value">${profile.upload_count || 0}</span><span class="gb-stat-label">Uploads</span></div>
+              <div class="gb-stat"><span class="gb-stat-value">${profile.download_count || 0}</span><span class="gb-stat-label">Downloads</span></div>
+              <div class="gb-stat"><span class="gb-stat-value join-date">${joinDate}</span><span class="gb-stat-label">Joined</span></div>
+            </div>
+            <div class="gb-trust-score">
+              <div class="gb-trust-header"><span>Trust Score</span><span style="color:${trustColor};">${profile.trust_score}%</span></div>
+              <div class="gb-trust-bar"><div class="gb-trust-fill" style="width:${profile.trust_score}%; background:${trustColor};"></div></div>
+            </div>
+            <div class="gb-profile-bio"><h3>About</h3><p>${escapeHTML(profile.bio || 'No bio.')}</p></div>
+            ${user && user.id !== userId ? `
+              <div class="gb-profile-actions">
+                <button onclick="toggleBuddy('${userId}')" class="gb-btn ${isBuddy ? 'gb-btn-primary' : 'gb-btn-outline'} gb-btn-block" id="buddyBtn-${userId}">${isBuddy ? '✓ Buddy' : '+ Add Buddy'}</button>
+                <button onclick="toggleSubscribe('${userId}')" class="gb-btn ${isSubscribed ? 'gb-btn-primary' : 'gb-btn-outline'} gb-btn-block" id="subBtn-${userId}">${isSubscribed ? '🔔 Subscribed' : '🔔 Subscribe'}</button>
+              </div>
+            ` : ''}
+          </div>
+        </div>
+        <div class="gb-profile-main">
+          <h3>${escapeHTML(profile.username)}'s Mods</h3>
+          <div id="userMods" class="gb-mod-grid" style="grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));"></div>
+        </div>
+      </div>
+    `;
+    // Load user's mods
+    const { data: mods } = await supabaseClient.from('mods2').select('*').eq('user_id', userId).eq('approved', true).order('created_at', { ascending: false });
+    const modsContainer = document.getElementById('userMods');
+    if (mods && mods.length) {
+      modsContainer.innerHTML = mods.map(mod => `
+        <div class="gb-card" style="padding:15px;">
+          <h4><a href="mod.html?id=${mod.id}" style="color:#00ff88;">${escapeHTML(mod.title)}</a></h4>
+          <p>📥 ${mod.download_count || 0} | 👁️ ${mod.view_count || 0}</p>
+          <p>${escapeHTML(mod.description.substring(0,100))}...</p>
+        </div>
+      `).join('');
+    } else {
+      modsContainer.innerHTML = '<p>No mods yet.</p>';
+    }
+  } catch (err) { console.error(err); container.innerHTML = '<div class="gb-error">Error loading profile</div>'; }
+}
+
+/* =========================
    EXPORT GLOBALS
 ========================= */
 
@@ -2802,7 +2994,13 @@ window.toggleCommentReaction = toggleCommentReaction;
 window.toggleFavorite = toggleFavorite;
 window.checkFavorite = checkFavorite;
 window.updateFavoriteButton = updateFavoriteButton;
-window.renderComment = renderComment; // if needed
+window.renderComment = renderComment;
+
+// Buddy, subscribe, thank, public profile
+window.toggleBuddy = toggleBuddy;
+window.toggleSubscribe = toggleSubscribe;
+window.toggleThank = toggleThank;
+window.loadPublicProfile = loadPublicProfile;
 
 // Also expose as window.supabaseClient for clarity
 window.supabaseClient = supabaseClient;
